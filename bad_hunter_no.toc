@@ -1,0 +1,6 @@
+## Interface: 30300
+## Title: Bad Hunter No
+## Author: sfnelson (www.sfnelson.org)
+## Notes: Reports hunter and warlock pets for taunting in instances and raids.
+## SavedVariables: BadHunterNo_State, BadHunterNo_Frame
+bad_hunter_no.xml
