@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ C:\Projects\WoW\Bin\Interface\FrameXML\UI.xsd">
 
-<Script file="bad_pet.lua"/>
+<Script file="BadPet.lua"/>
 
 <Frame name="BadPetFrame" toplevel="true" frameStrata="HIGH" movable="true" enableMouse="true" parent="UIParent" hidden="true" >
 	<Scripts>

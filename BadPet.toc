@@ -3,4 +3,4 @@
 ## Author: sfnelson (www.sfnelson.org)
 ## Notes: Reports hunter and warlock pets for taunting in instances and raids (/badpet or /bp to configure)
 ## SavedVariables: BadPet_State, BadPet_Frame
-bad_pet.xml
+BadPet.xml
