@@ -1,16 +1,16 @@
-if not BadHunterNo then
-   BadHunterNo = { debug = false, history = {} }
+if not BadPet then
+   BadPet = { debug = false, history = {} }
 end
-local lib = BadHunterNo
+local lib = BadPet
 
 lib.ChatFrame = DEFAULT_CHAT_FRAME;
 lib.Options = {
-   start = function (params) BadHunterNo.Start(params) end,
-   stop = function (params) BadHunterNo.Stop(params) end,
-   state = function (params) BadHunterNo.State(params) end,
-   party = function (params) BadHunterNo.SetFrame("party", params) end,
-   private = function (params) BadHunterNo.SetFrame("private", params) end,
-   test = function (params) BadHunterNo.Test(params) end
+   start = function (params) BadPet.Start(params) end,
+   stop = function (params) BadPet.Stop(params) end,
+   state = function (params) BadPet.State(params) end,
+   party = function (params) BadPet.SetFrame("party", params) end,
+   private = function (params) BadPet.SetFrame("private", params) end,
+   test = function (params) BadPet.Test(params) end
 };
 
 lib.Events = {
@@ -20,9 +20,9 @@ lib.Events = {
 };
 
 function lib.AddonLoaded(...)
-   if not BadHunterNo_State then
-      BadHunterNo_State = "running";
-      BadHunterNo_Frame = "private";
+   if not BadPet_State then
+      BadPet_State = "running";
+      BadPet_Frame = "private";
    end
    
    lib.CheckInstance();
@@ -49,20 +49,20 @@ function lib.CombatLogEvent(...)
    and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sFlags) == COMBATLOG_OBJECT_TYPE_PET)
    and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, sFlags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
    then
-      BadHunterNo.Growl(sName, spellid, dName, sGUID, dGUID);
+      BadPet.Growl(sName, spellid, dName, sGUID, dGUID);
    end
 end
 
 function lib.CheckInstance()
-   if BadHunterNo_State ~= "running" then
+   if BadPet_State ~= "running" then
       return
    end
    
    inInstance, instanceType = IsInInstance();
    if inInstance and (instanceType == "party" or instanceType == "raid") then
-      BadHunterNoFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+      BadPetFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
    else
-      BadHunterNoFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+      BadPetFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
    end
 end
 
@@ -71,19 +71,19 @@ function lib.Message(msg)
 end
 
 function lib.Start()
-   BadHunterNo_State = "running";
+   BadPet_State = "running";
    lib.CheckInstance();
    lib.State();
 end
 
 function lib.Stop()
-   BadHunterNoFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
-   BadHunterNo_State = "stopped";
+   BadPetFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+   BadPet_State = "stopped";
    lib.State();
 end
 
 function lib.SetFrame(frame)
-   BadHunterNo_Frame = frame;
+   BadPet_Frame = frame;
    lib.State();
 end
 
@@ -139,7 +139,7 @@ function lib.Growl(pet, spell, target, srcId, dstId)
    message = message.." used "..GetSpellLink(spell).." to taunt "..target;
    
    -- send message to party
-   if (BadHunterNo_Frame == "party") then
+   if (BadPet_Frame == "party") then
       if UnitInRaid("player") then
          SendChatMessage(message, "RAID");
          return;
@@ -150,11 +150,11 @@ function lib.Growl(pet, spell, target, srcId, dstId)
    end
    
    -- fail through case: not in party or reporting set to private
-   lib.Message("|cffffff00BadHunterNo:|r "..message);
+   lib.Message("|cffffff00BadPet:|r "..message);
 end
 
 function lib.State()
-   local message = "|cffffff00BadHunterNo|r "..BadHunterNo_State..", reporting to "..BadHunterNo_Frame;
+   local message = "|cffffff00BadPet|r "..BadPet_State..", reporting to "..BadPet_Frame;
    if lib.debug then
       local _, itype = IsInInstance();
       message = message.." (instance: "..itype..")"
@@ -179,17 +179,17 @@ function lib.Main(msg, frame)
    end
    
    lib.State();
-   lib.Message("|cffffff00  Usage:|r /badhunterno, /bhn\n|cffffff00Options:|r "..table.concat(options, ", "));
+   lib.Message("|cffffff00  Usage:|r /badpet, /bhn\n|cffffff00Options:|r "..table.concat(options, ", "));
 end
 
-SLASH_BADHUNTERNO1, SLASH_BADHUNTERNO2 = "/badhunterno", "/bhn";
-SlashCmdList["BADHUNTERNO"] = function (m,f) BadHunterNo.Main(m, f) end
+SLASH_BADPET1, SLASH_BADPET2 = "/badpet", "/bp";
+SlashCmdList["BADPET"] = function (m,f) BadPet.Main(m, f) end
 
-function BadHunterNoFrame_OnLoad()
-   BadHunterNoFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
-   BadHunterNoFrame:RegisterEvent("ADDON_LOADED");
+function BadPetFrame_OnLoad()
+   BadPetFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
+   BadPetFrame:RegisterEvent("ADDON_LOADED");
 end
 
-function BadHunterNoFrame_OnEvent(event, ...)
-   BadHunterNo.Events[event](...);
+function BadPetFrame_OnEvent(event, ...)
+   BadPet.Events[event](...);
 end
