@@ -179,7 +179,7 @@ function lib.Main(msg, frame)
    end
    
    lib.State();
-   lib.Message("|cffffff00  Usage:|r /badpet, /bhn\n|cffffff00Options:|r "..table.concat(options, ", "));
+   lib.Message("|cffffff00  Usage:|r /badpet, /bp\n|cffffff00Options:|r "..table.concat(options, ", "));
 end
 
 SLASH_BADPET1, SLASH_BADPET2 = "/badpet", "/bp";
