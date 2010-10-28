@@ -26,7 +26,8 @@ lib.Events = {
    ADDON_LOADED = function (...) lib.AddonLoaded(...) end,
    PLAYER_REGEN_ENABLED = function (...) lib.LeftCombat(...) end,
    CHAT_MSG_PET_INFO = function (...) lib.PetInfoChanged(...) end,
-   PET_BAR_UPDATE = function (...) lib.PetInfoChanged(...) end
+   PET_BAR_UPDATE = function (...) lib.PetInfoChanged(...) end,
+   UNIT_PET = function (...) lib.PetInfoChanged(...) end
 };
 
 lib.Spells = {
@@ -98,6 +99,8 @@ function lib.CheckInstance()
       BadPetFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
       BadPetFrame:UnregisterEvent("PLAYER_REGEN_ENABLED");
    end
+
+   lib.PetInfoChanged();
 end
 
 function lib.Message(msg)
@@ -244,6 +247,7 @@ function BadPetFrame_OnLoad()
    BadPetFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
    BadPetFrame:RegisterEvent("ADDON_LOADED");
    BadPetFrame:RegisterEvent("PET_BAR_UPDATE");
+   BadPetFrame:RegisterEvent("UNIT_PET");
 end
 
 function BadPetFrame_OnEvent(event, ...)
