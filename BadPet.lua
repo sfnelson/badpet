@@ -33,18 +33,10 @@ function lib.CombatLogEvent(...)
    
    if (ttype == "SPELL_CAST_SUCCESS")
    and (
-      -- growl ranks 1-9
-      (spellid == 2649) or (spellid == 14916) or (spellid == 14917) or (spellid == 14918)
-      or (spellid == 14919) or (spellid == 14920) or (spellid == 14921) or (spellid == 27047)
-      or (spellid == 61676)
-      -- anguish ranks 1-4
-      or (spellid == 33698) or (spellid == 33699) or (spellid == 33700)
-      or (spellid == 47993)
-      -- torment rangs 1-8
-      or (spellid == 3716) or (spellid == 7809) or (spellid == 7810) or (spellid == 7811)
-      or (spellid == 11774) or (spellid == 11775) or (spellid == 27270) or (spellid == 47984)
-      -- for testing, ghoul's claw ability
-      or (spellid == 47468 and lib.debug)
+      -- growl (generic hunter pet)
+      (spellid == 2649)
+      -- suffering (voidwalker)
+      or (spellid == 17735)
    )
    and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sFlags) == COMBATLOG_OBJECT_TYPE_PET)
    and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, sFlags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
@@ -88,7 +80,7 @@ function lib.SetFrame(frame)
 end
 
 function lib.Test()
-   lib.Growl("testPet", 61676, "testTarget");
+   lib.Growl("testPet", 2649, "testTarget");
 end
 
 function lib.GetPlayerName(guid)
