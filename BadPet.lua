@@ -126,7 +126,7 @@ function lib.Test()
    local src,dst = UnitGUID("pet"),UnitGUID("player");
    if src then
       lib.Growl(GetUnitName("pet"), 2649, GetUnitName("player"), src, dst);
-   else 
+   else
       lib.Growl("TestPet", 2649, "TestTarget");
    end
 end
@@ -163,7 +163,7 @@ function lib.Growl(pet, spell, target, srcId, dstId)
    -- get player name from pet's guid
    if srcId then
       player = lib.GetPlayerName(srcId);
-   else 
+   else
       -- this should only happen when testing
       player = GetUnitName("player");
    end
@@ -181,7 +181,11 @@ function lib.Growl(pet, spell, target, srcId, dstId)
    end
    
    -- construct spell message
-   spellText = " used "..GetSpellLink(spell).." to taunt "..target;
+   if target then
+      spellText = " used "..GetSpellLink(spell).." to taunt "..target;
+   else
+      spellText = " used "..GetSpellLink(spell).." (taunt)"
+   end
    
    -- send message
    if player and (BadPet_Frame == "party") then
