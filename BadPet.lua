@@ -5,24 +5,37 @@ local lib = BadPet
 
 lib.ChatFrame = DEFAULT_CHAT_FRAME;
 lib.Options = {
-   start = function (params) BadPet.Start(params) end,
-   stop = function (params) BadPet.Stop(params) end,
+   -- print state
    state = function (params) BadPet.State(params) end,
+   -- set state
+   stop = function (params) BadPet.SetState("stopped", params) end,
+   quiet = function (params) BadPet.SetState("quiet", params) end,
+   noisy = function (params) BadPet.SetState("noisy", params) end,
+   -- set reporting
    party = function (params) BadPet.SetFrame("party", params) end,
    private = function (params) BadPet.SetFrame("private", params) end,
-   test = function (params) BadPet.Test(params) end
+   whisper = function (params) BadPet.SetFrame("whisper", params) end,
+   -- misc
+   test = function (params) BadPet.Test(params) end,
+   debug = function (params) BadPet.Debug(params) end
 };
 
 lib.Events = {
    COMBAT_LOG_EVENT_UNFILTERED = function (...) lib.CombatLogEvent(...) end,
    PLAYER_ENTERING_WORLD = function (...) lib.CheckInstance(...) end,
-   ADDON_LOADED = function (...) lib.AddonLoaded(...) end
+   ADDON_LOADED = function (...) lib.AddonLoaded(...) end,
+   PLAYER_REGEN_ENABLED = function (...) lib.LeftCombat(...) end
 };
 
 function lib.AddonLoaded(...)
-   if not BadPet_State then
-      BadPet_State = "running";
+   if not BadPet_State or BatPet_State == "running" then
+      BadPet_State = "quiet";
+   end
+   if not BadPet_Frame then
       BadPet_Frame = "private";
+   end
+   if not BadPet_Debug then
+      BadPet_Debug = false;
    end
    
    lib.CheckInstance();
@@ -49,16 +62,33 @@ function lib.CombatLogEvent(...)
    end
 end
 
+function lib.LeftCombat(...)
+   lib.history = {};
+   if BadPet_Debug then
+      lib.Message("|cffffff00BadPet:|r Left combat, warnings reset");
+   end
+end
+
 function lib.CheckInstance()
-   if BadPet_State ~= "running" then
-      return
+   local inInstance, instanceType = IsInInstance();
+   local register =  inInstance
+   and (instanceType == "party" or instanceType == "raid");
+   
+   if BadPet_Debug then
+      register = true;
+   end
+   
+   if BadPet_State == "stopped" then
+      register = false;
    end
    
    inInstance, instanceType = IsInInstance();
-   if inInstance and (instanceType == "party" or instanceType == "raid") then
+   if register then
       BadPetFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+      BadPetFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
    else
       BadPetFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+      BadPetFrame:UnregisterEvent("PLAYER_REGEN_ENABLED");
    end
 end
 
@@ -66,15 +96,15 @@ function lib.Message(msg)
    lib.ChatFrame:AddMessage(msg);
 end
 
-function lib.Start()
-   BadPet_State = "running";
+function lib.SetState(state)
+   BadPet_State = state;
    lib.CheckInstance();
    lib.State();
 end
 
-function lib.Stop()
-   BadPetFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
-   BadPet_State = "stopped";
+function lib.Debug()
+   BadPet_Debug = not BadPet_Debug;
+   lib.CheckInstance();
    lib.State();
 end
 
@@ -84,7 +114,13 @@ function lib.SetFrame(frame)
 end
 
 function lib.Test()
-   lib.Growl("testPet", 2649, "testTarget");
+   lib.history = {};
+   local src,dst = UnitGUID("pet"),UnitGUID("player");
+   if src then
+      lib.Growl(GetUnitName("pet"), 2649, GetUnitName("player"), src, dst);
+   else 
+      lib.Growl("TestPet", 2649, "TestTarget");
+   end
 end
 
 function lib.GetPlayerName(guid)
@@ -92,13 +128,13 @@ function lib.GetPlayerName(guid)
    for i = 1, GetNumRaidMembers() do
       pet = UnitGUID("raidpet"..i);
       if (pet and pet == guid) then
-         return UnitName("raid"..i);
+         return (GetUnitName("raid"..i,true)or""):gsub(" ","");
       end
    end
    for i = 1,4 do
       pet = UnitGUID("partypet"..i);
       if (pet and pet == guid) then
-         return UnitName("party"..i);
+         return (GetUnitName("party"..i,true)or""):gsub(" ","");
       end
    end
    pet = UnitGUID("pet");
@@ -108,52 +144,62 @@ function lib.GetPlayerName(guid)
 end
 
 function lib.Growl(pet, spell, target, srcId, dstId)
+   local bp = "Bad Pet: ";
+   local player, targetText, spellText;
    
    -- avoid repeating message multiple times for the same mob
-   if lib.history[srcId] and (lib.history[srcId] == dstId) then
+   if BadPet_State ~= "noisy" and lib.history[srcId] then
       return;
    end
    
    -- get player name from pet's guid
-   local player, realm;
    if srcId then
-      player, realm = lib.GetPlayerName(srcId);
+      player = lib.GetPlayerName(srcId);
+   else 
+      -- this should only happen when testing
+      player = GetPlayerName("player");
    end
    
-   -- store history to prevent spam
+   -- record this report to prevent spam
    if srcId then
       lib.history[srcId] = dstId;
    end
    
-   -- construct message
-   local message;
+   -- construct pet message
    if (player) then
-      message = player.."'s pet, "..pet..",";
+      targetText = player.."'s pet, "..pet..",";
    else
-      message = pet;
+      targetText = pet;
    end
-   message = message.." used "..GetSpellLink(spell).." to taunt "..target;
    
-   -- send message to party
-   if (BadPet_Frame == "party") then
+   -- construct spell message
+   spellText = " used "..GetSpellLink(spell).." to taunt "..target;
+   
+   -- send message
+   if player and (BadPet_Frame == "party") then
       if UnitInRaid("player") then
-         SendChatMessage(message, "RAID");
+         SendChatMessage(bp..targetText..spellText, "RAID");
          return;
       elseif GetNumPartyMembers() > 0 then
-         SendChatMessage(message, "PARTY");
+         SendChatMessage(bp..targetText..spellText, "PARTY");
          return;
       end
+   elseif player and (BadPet_Frame == "whisper") then
+      targetText = "Your pet, "..pet..",";
+      SendChatMessage(bp..targetText..spellText, "WHISPER", 
+         GetDefaultLanguage("player"), player);
+      return;
    end
    
-   -- fail through case: not in party or reporting set to private
-   lib.Message("|cffffff00BadPet:|r "..message);
+   -- fall through case: not in party or reporting set to private
+   lib.Message("|cffffff00BadPet:|r "..targetText..spellText);
 end
 
 function lib.State()
-   local message = "|cffffff00BadPet|r "..BadPet_State..", reporting to "..BadPet_Frame;
-   if lib.debug then
+   local message = "|cffffff00BadPet:|r "..BadPet_State..", reporting to "..BadPet_Frame;
+   if BadPet_Debug then
       local _, itype = IsInInstance();
-      message = message.." (instance: "..itype..")"
+      message = message.." in debug mode (instance: "..itype..")"
    end
    lib.Message(message);
 end
