@@ -173,7 +173,11 @@ function lib.Growl(pet, spell, target, srcId, dstId)
    end
    
    -- construct spell message
-   spellText = " used "..GetSpellLink(spell).." to taunt "..target;
+   if target then
+      spellText = " used "..GetSpellLink(spell).." to taunt "..target;
+   else
+      spellText = " used "..GetSpellLink(spell).." (taunt)";
+   end
    
    -- send message
    if player and (BadPet_Frame == "party") then
