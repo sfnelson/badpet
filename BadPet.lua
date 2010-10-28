@@ -157,7 +157,7 @@ function lib.Growl(pet, spell, target, srcId, dstId)
       player = lib.GetPlayerName(srcId);
    else 
       -- this should only happen when testing
-      player = GetPlayerName("player");
+      player = GetUnitName("player");
    end
    
    -- record this report to prevent spam
