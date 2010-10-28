@@ -24,8 +24,17 @@ lib.Events = {
    COMBAT_LOG_EVENT_UNFILTERED = function (...) lib.CombatLogEvent(...) end,
    PLAYER_ENTERING_WORLD = function (...) lib.CheckInstance(...) end,
    ADDON_LOADED = function (...) lib.AddonLoaded(...) end,
-   PLAYER_REGEN_ENABLED = function (...) lib.LeftCombat(...) end
+   PLAYER_REGEN_ENABLED = function (...) lib.LeftCombat(...) end,
+   CHAT_MSG_PET_INFO = function (...) lib.PetInfoChanged(...) end,
+   PET_BAR_UPDATE = function (...) lib.PetInfoChanged(...) end
 };
+
+lib.Spells = {
+   Growl        = 2649,   -- growl (generic hunter pet - increases threat)
+   Taunt        = 53477,  -- taunt (hunter pet talent - true taunt)
+   Thunderstomp = 63900,  -- thunderstomp (hunter pet talent - damage + threat)
+   Suffering    = 17735   -- suffering (voidwalker - true taunt)
+}
 
 function lib.AddonLoaded(...)
    if not BadPet_State or BatPet_State == "running" then
@@ -45,18 +54,9 @@ function lib.CombatLogEvent(...)
    local _, ttype, sGUID, sName, sFlags, dGUID, dName, _, spellid, spellname = select(1, ...);
    
    if (ttype == "SPELL_CAST_SUCCESS")
-   and (
-      -- growl (generic hunter pet - increases threat)
-      (spellid == 2649)
-      -- taunt (hunter pet talent - true taunt)
-      or (spellid == 53477)
-      -- thunderstomp (hunter pet talent - damage + threat)
-      or (spellid == 63900)
-      -- suffering (voidwalker - true taunt)
-      or (spellid == 17735)
-   )
    and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sFlags) == COMBATLOG_OBJECT_TYPE_PET)
    and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, sFlags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
+   and lib.Spells[spellname] and lib.Spells[spellname] == spellid
    then
       BadPet.Growl(sName, spellid, dName, sGUID, dGUID);
    end
@@ -69,10 +69,19 @@ function lib.LeftCombat(...)
    end
 end
 
-function lib.CheckInstance()
+function lib.PetInfoChanged(...)
+   if lib.UpdateLDB then
+      lib.UpdateLDB(...);
+   end
+end
+
+function lib.GetInInstance()
    local inInstance, instanceType = IsInInstance();
-   local register =  inInstance
-   and (instanceType == "party" or instanceType == "raid");
+   return inInstance and (instanceType == "party" or instanceType == "raid");
+end
+
+function lib.CheckInstance()
+   local register = lib.GetInInstance();
    
    if BadPet_Debug then
       register = true;
@@ -82,7 +91,6 @@ function lib.CheckInstance()
       register = false;
    end
    
-   inInstance, instanceType = IsInInstance();
    if register then
       BadPetFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
       BadPetFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
@@ -221,7 +229,8 @@ function lib.Main(msg, frame)
    end
    
    lib.State();
-   lib.Message("|cffffff00  Usage:|r /badpet, /bp\n|cffffff00Options:|r "..table.concat(options, ", "));
+   lib.Message("|cffffff00  Usage:|r /badpet, /bp\n|cffffff00Options:|r "
+      ..table.concat(options, ", "));
 end
 
 SLASH_BADPET1, SLASH_BADPET2 = "/badpet", "/bp";
@@ -230,6 +239,7 @@ SlashCmdList["BADPET"] = function (m,f) BadPet.Main(m, f) end
 function BadPetFrame_OnLoad()
    BadPetFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
    BadPetFrame:RegisterEvent("ADDON_LOADED");
+   BadPetFrame:RegisterEvent("PET_BAR_UPDATE");
 end
 
 function BadPetFrame_OnEvent(event, ...)
