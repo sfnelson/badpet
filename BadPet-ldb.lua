@@ -7,12 +7,12 @@ if not LibStub then
    return;
 end
 
-local ldb = LibStub:GetLibrary("LibDataBroker-1.1");
+local ldb = LibStub:GetLibrary("LibDataBroker-1.1", true);
 if not ldb then
    return
 end
 
-local qtip = LibStub:GetLibrary("LibQTip-1.0");
+local qtip = LibStub:GetLibrary("LibQTip-1.0", true);
 if not qtip then
    return
 end
