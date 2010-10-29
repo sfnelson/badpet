@@ -3,7 +3,6 @@
 ## Author: sfnelson (www.sfnelson.org)
 ## Notes: Reports hunter and warlock pets for taunting in instances and raids (/badpet or /bp to configure)
 ## SavedVariables: BadPet_State, BadPet_Frame, BadPet_Debug
-BadPet.xml
 
 #@no-lib-strip@
 lib\LibStub\LibStub.lua
@@ -11,3 +10,5 @@ lib\CallbackHandler-1.0\CallbackHandler-1.0.lua
 lib\LibDataBroker-1.1\LibDataBroker-1.1.lua
 lib\LibQTip-1.0\LibQTip-1.0.lua
 #@end-no-lib-strip@
+
+BadPet.xml
