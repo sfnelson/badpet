@@ -21,6 +21,13 @@ if not lib.ldbdata then
    lib.ldbdata = ldb:NewDataObject("Bat Pet", {type = "data source", text = "Bad Pet"});
 end
 
+if not lib.fixer then
+   lib.fixer = CreateFrame("Button", "BadPetFixer", UIParent, "SecureActionButtonTemplate");
+end
+
+lib.fixer:SetAttribute("type","macro");
+lib.fixer:SetAttribute("macrotext","");
+
 local red = CreateFont("BadPetRedFont");
 red:SetFont(GameTooltipText:GetFont());
 red:SetTextColor(1,0,0);
@@ -89,6 +96,7 @@ end
 function lib.UpdateLDB()
    local pet = GetUnitName("pet");
    local color;
+   local fixer = "";
    
    local inInstance = lib.GetInInstance();
    for name,id in pairs(lib.Spells) do
@@ -96,6 +104,7 @@ function lib.UpdateLDB()
       if castable then
          if state and inInstance or not state and not inInstance then
             color = "|cffff0000"
+            fixer = fixer .. "/petautocasttoggle "..name.."\n";
          end
       end
    end
@@ -104,9 +113,10 @@ function lib.UpdateLDB()
       color = "|cff00ff00"
    end
    
+   lib.fixer:SetAttribute("macrotext", fixer);
    if pet then
       lib.ldbdata.text = color..pet.."|r";
    else
-      lib.ldbdata.text = "Bad Pet"
+      lib.ldbdata.text = "Bad Pet";
    end
 end
