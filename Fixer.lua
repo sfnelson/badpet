@@ -163,11 +163,13 @@ end
 --------------------------------------------------------------------------------
 
 --- LDB Data Object
-Fixer.ldbdata = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject(
-  "Bad Pet", { type = "data source", text = "Bad Pet" });
+if not Fixer.ldbdata then
+  Fixer.ldbdata = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject(
+    "Bad Pet", { type = "data source", text = "Bad Pet" });
+end
 
-Fixer.ldbdata.OnEnter = function (frame)
-  Fixer.ShowTooltip(frame);
+function Fixer.ldbdata:OnEnter()
+  Fixer:ShowTooltip(self);
 end
 
 --------------------------------------------------------------------------------
@@ -190,7 +192,7 @@ Fixer.cellPrototype = {
   end,
   RefreshCell = function (frame)
 	local castable, state = GetSpellAutocast(frame.value, BOOKTYPE_PET);
-	local inInstance = lib.GetInInstance();
+	local inInstance = BadPet:GetInInstance();
 	if not castable then
 	  frame.fontString:SetText("error");
 	else
