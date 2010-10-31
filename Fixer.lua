@@ -23,25 +23,147 @@ if not Fixer then
   Fixer = BadPet:NewModule("BadPetFixer","AceConsole-3.0", "AceEvent-3.0");
   Fixer.parent = BadPet;
   BadPet.Fixer = Fixer;
+  Fixer.spells = {};
 end
 
 --------------------------------------------------------------------------------
 -- Configuration
 --------------------------------------------------------------------------------
 
-local options = {
+Fixer.options = {
   name = "BadPetFixer",
   type = 'group',
   handler = BadPet,
   set = "SetOption",
   get = "GetOption",
+  order = 50,
   args = {
+    p1 = {
+      name = "BadPet_Fixer is a module for helping hunters and warlocks control"
+        .. " their pets. It provides a hidden frame which you can click with"
+        .. " a macro to set your pets taunt events to whatever you configure"
+        .. " here. Add this to a macro, or type it into chat:",
+      type = "description",
+      fontSize = "medium",
+      order = 1,
+    },
+    p2 = {
+      name = "/click BadPetFixer",
+      type = "description",
+      fontSize = "large",
+      order = 2,
+    },
+    p3 = {
+      name =  "There is also a LibDataBroker plugin for ChocolateBar or"
+        .. " similar which shows the state of your pet's auto-cast taunts."
+        .. " You can click on the taunts in the LDB tooltip to toggle them.",
+      type = "description",
+      fontSize = "medium",
+      order = 3,
+    },
     fixer = {
-      name = "Enable BadPet Fixer (Data Broker Feed)",
+      name = "Enable BadPet_Fixer (Data Broker Feed)",
       type = "toggle",
+      order = 4,
+      width = "double",
+    },
+    spells = {
+      name = "Spells",
+      type = "group",
+      handler = Fixer,
+      get = "GetSpellState",
+      set = "SetSpellState",
+      order = 5,
+      args = {
+        inside = {
+          name = "Inside Instances",
+          type = "group",
+          args = {},
+        },
+        outside = {
+          name = "Outside Instances",
+          type = "group",
+          args = {},
+        },
+      },
     },
   },
 };
+
+BadPet.options.args.fixer = Fixer.options;
+
+--- Get the state of a sepll in the spells option table.
+function Fixer:GetSpellState(info)
+  local where, id = info[#info-1], tonumber(info[#info]);
+  local db = self.parent.db.profile.fixerdb;
+
+  if db and db[where] and db[where][id] ~= nil then
+    if db[where][id] then
+      return true
+    else
+      return false
+    end
+  end
+
+  if where == "inside" then
+    return false;
+  else
+    return true;
+  end
+end
+
+--- Set the state of a spell in the spells option table.
+function Fixer:SetSpellState(info, value)
+  local where = info[#info-1]
+  local id = tonumber(info[#info]);
+  local db = self.parent.db.profile.fixerdb;
+
+  if not db then
+    db = {};
+    db.inside = {};
+    db.outside = {};
+    self.parent.db.profile.fixerdb = db;
+  end
+
+  db[where][id] = value;
+
+  self:Refresh();
+end
+
+--- Refresh the spells option table.
+function Fixer:RefreshSpells()
+  local inside = self.options.args.spells.args.inside;
+  local outside = self.options.args.spells.args.outside;
+  local db = self.parent.db.profile.fixerdb;
+  local inInstance = self.parent:GetInInstance();
+
+  local where;
+  if inInstance then
+    where = "inside";
+  else
+    where = "outside";
+  end
+
+  inside.args = {};
+  outside.args = {};
+  self.spells = {};
+
+  for spell, id in pairs(self.parent.addonSpells) do
+	local c = {};
+	c.name = spell;
+	c.type = "toggle";
+	inside.args[tostring(id)] = c;
+	outside.args[tostring(id)] = c;
+
+    if db and db[where] and db[where][id] ~= nil then
+	  self.spells[spell] = db[where][id];
+	else
+	  self.spells[spell] = not inInstance;
+	end
+  end
+
+  LibStub("AceConfigRegistry-3.0"):NotifyChange("BadPet: Fixer");
+end
 
 --------------------------------------------------------------------------------
 -- Setup
@@ -59,7 +181,7 @@ function Fixer:OnInitialize()
 
   -- Register configuration page and slash commands.
   local conf = LibStub("AceConfig-3.0");
-  conf:RegisterOptionsTable("BadPet: Fixer", options);
+  conf:RegisterOptionsTable("BadPet: Fixer", self.options);
 
   local dialog = LibStub("AceConfigDialog-3.0");
   dialog:AddToBlizOptions("BadPet: Fixer", "Fixer", "BadPet");
@@ -72,6 +194,10 @@ function Fixer:OnEnable()
   self:RegisterEvent("PET_BAR_UPDATE", "Refresh");
   self:RegisterEvent("UNIT_PET", "Refresh");
   self:Refresh();
+
+  self.ldbdata.OnEnter = function (frame)
+    Fixer:ShowTooltip(frame);
+  end
 end
 
 function Fixer:OnDisable()
@@ -81,6 +207,8 @@ function Fixer:OnDisable()
   self:UnregisterEvent("PET_BAR_UPDATE");
   self:UnregisterEvent("UNIT_PET");
   self:Refresh();
+
+  self.ldbdata.OnEnter = function (frame) end
 end
 
 --- Update the LDB Object.
@@ -88,17 +216,20 @@ function Fixer:Refresh()
   if not self.parent.db.profile.fixer then
     self.ldbdata.text = "Bad Pet";
     self.frame:SetAttribute("macrotext", "/bp");
+    return;
   end
+
+  self:RefreshSpells();
 
   local pet = GetUnitName("pet");
   local color;
   local macrotext = "";
 
   local inInstance = self.parent:GetInInstance();
-  for name,id in pairs(self.parent.spells) do
+  for name,goal in pairs(self.spells) do
 	local castable,state = GetSpellAutocast(name, BOOKTYPE_PET);
 	if castable then
-	  if state and inInstance or not state and not inInstance then
+	  if goal == not state then
 		color = "|cffff0000"
 		macrotext = macrotext .. "/petautocasttoggle "..name.."\n";
 	  end
@@ -143,7 +274,7 @@ function Fixer:ShowTooltip(frame)
    else
       tooltip:AddHeader("|cffffff00"..pet.."|r");
 
-      for spell,id in pairs(self.parent.spells) do
+      for spell,_ in pairs(self.spells) do
          local castable, state = GetSpellAutocast(spell, BOOKTYPE_PET);
          local font;
          if castable then
@@ -168,8 +299,8 @@ if not Fixer.ldbdata then
     "Bad Pet", { type = "data source", text = "Bad Pet" });
 end
 
-function Fixer.ldbdata:OnEnter()
-  Fixer:ShowTooltip(self);
+function Fixer.ldbdata:OnClick()
+  InterfaceOptionsFrame_OpenToCategory(BadPet.config);
 end
 
 --------------------------------------------------------------------------------
@@ -192,14 +323,14 @@ Fixer.cellPrototype = {
   end,
   RefreshCell = function (frame)
 	local castable, state = GetSpellAutocast(frame.value, BOOKTYPE_PET);
-	local inInstance = BadPet:GetInInstance();
 	if not castable then
 	  frame.fontString:SetText("error");
 	else
-	  if state and inInstance or not state and not inInstance then
-		frame.fontString:SetTextColor(1, 0, 0);
-	  else
+	  local goal = Fixer.spells[frame.value];
+	  if goal and state or not goal and not state then
 		frame.fontString:SetTextColor(0, 1, 0);
+	  else
+		frame.fontString:SetTextColor(1, 0, 0);
 	  end
 	  if state then
 		frame.fontString:SetText("on");
@@ -228,7 +359,7 @@ Fixer.cellPrototype = {
 
 setmetatable(Fixer.cellPrototype,
   {
-     __index = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
+    __index = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
   });
 
 Fixer.cellProvider = {
@@ -238,22 +369,22 @@ Fixer.cellProvider = {
 }
 
 function Fixer.cellProvider:AcquireCell(tooltip)
-   local cell = table.remove(self.heap);
+  local cell = table.remove(self.heap);
 
-   if not cell then
-      cell = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate");
-      setmetatable(cell, self.cellMetatable);
-      cell:InitCell();
-   end
+  if not cell then
+    cell = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate");
+    setmetatable(cell, self.cellMetatable);
+    cell:InitCell();
+  end
 
-   return cell;
+  return cell;
 end
 
 function Fixer.cellProvider:ReleaseCell(cell)
-   cell:ResetCell();
-   table.insert(self.heap, cell);
+  cell:ResetCell();
+  table.insert(self.heap, cell);
 end
 
 function Fixer.cellProvider:GetCellPrototype()
-   return self.cellPrototype, self.cellMetatable;
+  return self.cellPrototype, self.cellMetatable;
 end

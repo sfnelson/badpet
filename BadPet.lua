@@ -16,12 +16,14 @@ local BadPet = BadPet;
 --------------------------------------------------------------------------------
 
 --- Spells which the addon tracks.
-BadPet.spells = {
+BadPet.addonSpells = {
    Growl        = 2649,     -- growl (generic hunter pet - increases threat)
    Taunt        = 53477,    -- taunt (hunter pet talent - true taunt)
    Thunderstomp = 63900,    -- thunderstomp (hunter pet talent - damage+threat)
    Suffering    = 17735,    -- suffering (voidwalker - true taunt)
 };
+
+BadPet.spells = {};
 
 --- Structure for event tracking.
 BadPet.history = {};
@@ -29,91 +31,37 @@ BadPet.history = {};
 --- Default settings for BadPetDB.
 local defaults = {
   profile = {
-    enabled = true,
+    enable = true,
     state = "quiet",
     frame = "whisper",
     debug = false,
     fixer = true;
+
   },
 };
 
 --- Configuration options.
-local options = {
+BadPet.options = {
   name = "BadPet",
   type = 'group',
   handler = BadPet,
+  set = "SetOption",
+  get = "GetOption",
   args = {
-    enable = {
-      name = "Enable Addon",
-      type = "execute",
-      func = function () BadPet:Enable(); end,
-      order = 10;
-    },
-    disable = {
-      name = "Disable Addon",
-      type = "execute",
-      func = function () BadPet:Disable(); end,
-      order = 20;
-    },
-    status = {
-      name = "Show Status",
-      type = "execute",
-      func = function () BadPet:Status(); end,
-      order = 30;
-    },
-    test = {
-      name = "Print a test report",
-      type = "execute",
-      func = function () BadPet:Test(); end,
-      order = 40;
-      hidden = true;
-    },
-    quiet = {
-      name = "Limit reports to once per combat",
-      type = "execute",
-      func = function () BadPet:SetProperty("state", "quiet"); end,
-      order = 50;
-    },
-    noisy = {
-      name = "Report all taunts",
-      type = "execute",
-      func = function () BadPet:SetProperty("state", "noisy"); end,
-      order = 60;
-    },
-    private = {
-      name = "Report only in the chat frame",
-      type = "execute",
-      func = function () BadPet:SetProperty("frame", "private"); end,
-      order = 70;
-    },
-    whisper = {
-      name = "Report as a whisper",
-      type = "execute",
-      func = function () BadPet:SetProperty("frame", "whisper"); end,
-      order = 80;
-    },
-    party = {
-      name = "Report to party/raid",
-      type = "execute",
-      func = function () BadPet:SetProperty("frame", "party"); end,
-      order = 90;
-    },
-
+	enable = {
+	  name = "Enable",
+	  desc = "Enables / disables the addon.",
+	  type = "toggle",
+	  order = 1,
+	},
     general = {
       name = "General",
       type = "group",
-      order = 1,
-      handler = BadPet,
-      set = "SetOption",
-      get = "GetOption",
-      cmdHidden = true;
+      order = 2,
+	  handler = BadPet,
+	  set = "SetOption",
+	  get = "GetOption",
       args = {
-        enable = {
-          name = "Enable",
-          desc = "Enables / disables the addon.",
-          type = "toggle",
-          order = 10,
-        },
         state = {
           name = "Report Frequency",
           desc = "Report every time a pet taunts (noisy)"..
@@ -142,8 +90,96 @@ local options = {
           type = "toggle",
           hidden = true,
         },
+        ignore = {
+          name = "Spells to ignore",
+          type = "group",
+		  handler = BadPet,
+          set = "SetSpellState",
+          get = "GetSpellState",
+          order = 60;
+        },
+        add = {
+          name = "Extra Spells",
+          type = "group",
+          handler = BadPet,
+          set = "SetSpellState",
+          get = "GetSpellState",
+          order = 70;
+        },
       },
     },
+    cmd = {
+      name = "Commandline Options",
+      type = "group",
+      order = 3,
+      handler = BadPet,
+      set = "SetOption",
+      get = "GetOption",
+      hidden = true,
+      args = {
+		enable = {
+		  name = "Enable Addon",
+		  type = "execute",
+		  func = function () BadPet:Enable(); end,
+		  order = 10;
+		},
+		disable = {
+		  name = "Disable Addon",
+		  type = "execute",
+		  func = function () BadPet:Disable(); end,
+		  order = 20;
+		},
+		status = {
+		  name = "Show Status",
+		  type = "execute",
+		  func = function () BadPet:Status(); end,
+		  order = 30;
+		},
+		test = {
+		  name = "Print a test report",
+		  type = "execute",
+		  func = function () BadPet:Test(); end,
+		  order = 40;
+		  hidden = true;
+		  width = "half",
+		},
+		quiet = {
+		  name = "Limit reports to once per combat",
+		  type = "execute",
+		  func = function () BadPet:SetProperty("state", "quiet"); end,
+		  order = 50;
+		},
+		noisy = {
+		  name = "Report all taunts",
+		  type = "execute",
+		  func = function () BadPet:SetProperty("state", "noisy"); end,
+		  order = 60;
+		},
+		private = {
+		  name = "Report only in the chat frame",
+		  type = "execute",
+		  func = function () BadPet:SetProperty("frame", "private"); end,
+		  order = 70;
+		},
+		whisper = {
+		  name = "Report as a whisper",
+		  type = "execute",
+		  func = function () BadPet:SetProperty("frame", "whisper"); end,
+		  order = 80;
+		},
+		party = {
+		  name = "Report to party/raid",
+		  type = "execute",
+		  func = function () BadPet:SetProperty("frame", "party"); end,
+		  order = 90;
+		},
+		debug = {
+		  name = "Debug",
+		  type = "toggle",
+		  hidden = true,
+		},
+	  },
+	},
   },
 };
 
@@ -219,6 +255,125 @@ function BadPet:Test()
 end
 
 --------------------------------------------------------------------------------
+-- Configure Spells Options
+--------------------------------------------------------------------------------
+
+--- Recreate the spells option page
+function BadPet:RefreshSpells()
+  self.spells = {};
+
+  local ignore = self.db.profile.ignore;
+
+  if not ignore then
+    ignore = {};
+  end
+
+  for spell,id in pairs(self.addonSpells) do
+    if not ignore[id] then
+      self.spells[spell] = id;
+    end
+  end
+
+  if self.db.profile.spells then
+    for id,_ in pairs(self.db.profile.spells) do
+      local spell = GetSpellInfo(id);
+      if spell then
+        self.spells[spell] = id;
+      end
+    end
+  end
+
+  local toIgnore = self.options.args.general.args.ignore;
+
+  toIgnore.args = {};
+
+  for spell,id in pairs(self.addonSpells) do
+    local c = {}
+    c.name = spell;
+    c.type = "toggle";
+    toIgnore.args[tostring(id)] = c;
+  end
+
+  local toAdd = self.options.args.general.args.add;
+
+  toAdd.args = {};
+
+  if self.db.profile.spells then
+	for id,_ in pairs(self.db.profile.spells) do
+	  local spell = GetSpellInfo(id);
+	  if spell then
+		local c = {}
+		c.name = spell;
+		c.type = "toggle";
+		toAdd.args[tostring(id)] = c;
+	  end
+	end
+  end
+
+  local add = {};
+  add.name = "Add SpellId";
+  add.type = "input";
+  add.desc = "Enter a spell id to add to the watch list (pet spells only)";
+  toAdd.args["add"] = add;
+
+  LibStub("AceConfigRegistry-3.0"):NotifyChange("BadPet: General");
+end
+
+--- Get the state of a spell in the spells option table
+function BadPet:GetSpellState(info)
+
+  if info[#info] == "add" then
+    return "";
+  end
+
+  local id = tonumber(info[#info]);
+
+  if self.db.profile.ignore and self.db.profile.ignore[id] then
+    return true;
+  end
+
+  if self.db.profile.spells and self.db.profile.spells[id] then
+    return true;
+  end
+
+  return false;
+end
+
+--- Set the state of a spell in the spells option table
+function BadPet:SetSpellState(info, value)
+  local id;
+
+  if info[#info] == "add" then
+    id = tonumber(value);
+    if tostring(id) == value then
+      value = id;
+    end
+    local name = GetSpellInfo(value);
+    if name then
+      if not self.db.profile.spells then
+        self.db.profile.spells = {};
+      end
+      self.db.profile.spells[id] = name;
+    end
+  else
+    id = tonumber(info[#info]);
+    local name = GetSpellInfo(id);
+    if not name then
+      return;
+    elseif self.addonSpells[name] then
+	  if not self.db.profile.ignore then
+		self.db.profile.ignore = {};
+	  end
+	  self.db.profile.ignore[id] = value;
+	elseif self.db.profile.spells and self.db.profile.spells[id] then
+	  self.db.profile.spells = table.remove(self.db.profile.spells, id);
+	end
+  end
+
+  self:RefreshSpells();
+end
+
+--------------------------------------------------------------------------------
 -- Setup
 --------------------------------------------------------------------------------
 
@@ -233,22 +388,26 @@ function BadPet:OnInitialize()
   self:MigrateDepricatedSettings();
 
   -- Register handlers for responding to profile changes.
-  self.db.RegisterCallback(self, "OnProfileChanged", "Refresh");
-  self.db.RegisterCallback(self, "OnProfileCopied", "Refresh");
-  self.db.RegisterCallback(self, "OnProfileReset", "Refresh");
-
+  self.db.RegisterCallback(self, "OnProfileChanged", "RefreshProfile");
+  self.db.RegisterCallback(self, "OnProfileCopied", "RefreshProfile");
+  self.db.RegisterCallback(self, "OnProfileReset", "RefreshProfile");
 
   -- Get profile configuration page for the stored variables.
-  options.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db);
+  self.options.args.profiles
+    = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db);
+  self.options.args.profiles.order = 100;
 
   -- Register configuration page and slash commands.
   local conf = LibStub("AceConfig-3.0");
-  conf:RegisterOptionsTable("BadPet", options, { 'badpet', 'bp' });
-  conf:RegisterOptionsTable("BadPet: General", options.args.general);
-  conf:RegisterOptionsTable("BadPet: Profiles", options.args.profiles);
+  conf:RegisterOptionsTable("BadPet", self.options);
+  conf:RegisterOptionsTable("BadPet: Cmd",
+      self.options.args.cmd, {'badpet','bp'});
+  conf:RegisterOptionsTable("BadPet: General", self.options.args.general);
+  conf:RegisterOptionsTable("BadPet: Profiles", self.options.args.profiles);
 
   local dialog = LibStub("AceConfigDialog-3.0");
-  dialog:AddToBlizOptions("BadPet: General", "BadPet");
+  dialog:AddToBlizOptions("BadPet", "BadPet");
+  self.config = dialog:AddToBlizOptions("BadPet: General", "General", "BadPet");
   dialog:AddToBlizOptions("BadPet: Profiles", "Profiles", "BadPet");
 end
 
@@ -266,6 +425,13 @@ function BadPet:OnDisable()
   self:Refresh();
 end
 
+function BadPet:RefreshProfile()
+  self:Refresh();
+  if self.Fixer then
+    self.Fixer:Refresh();
+  end
+end
+
 function BadPet:Refresh()
   local register = self:GetInInstance();
 
@@ -273,7 +439,7 @@ function BadPet:Refresh()
     register = true;
   end
 
-  if not self.db.profile.enabled then
+  if not self.db.profile.enable then
     register = false;
   end
 
@@ -284,8 +450,9 @@ function BadPet:Refresh()
     self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
     self:UnregisterEvent("PLAYER_REGEN_ENABLED");
   end
-end
 
+  self:RefreshSpells();
+end
 
 --------------------------------------------------------------------------------
 -- Event Handling
@@ -452,5 +619,8 @@ function BadPet:MigrateDepricatedSettings()
   if BadPet_Debug then
     self.db.profile.debug = BadPet_Debug;
     BadPet_Debug = nil;
+  end
+  if self.db.profile.fixer == nil then
+    self.db.profile.fixer = true;
   end
 end
