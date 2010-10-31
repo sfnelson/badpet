@@ -1,14 +1,11 @@
 ## Interface: 40000
-## Title: Bad Pet!
-## Author: sfnelson (www.sfnelson.org)
-## Notes: Reports hunter and warlock pets for taunting in instances and raids (/badpet or /bp to configure)
-## SavedVariables: BadPet_State, BadPet_Frame, BadPet_Debug
+## Title: BadPet
+## Notes: Detects and reports pet taunts in dungeons. Helps pet classes prevent them (/badpet or /bp to configure)
+## Author: sfnelson
+## SavedVariables: BadPetDB, BadPet_State, BadPet_Frame, BadPet_Debug
+## OptionalDeps: Ace3, LibDataBroker-1.1, LibQTip-1.0
 
-#@no-lib-strip@
-lib\LibStub\LibStub.lua
-lib\CallbackHandler-1.0\CallbackHandler-1.0.lua
-lib\LibDataBroker-1.1\LibDataBroker-1.1.lua
-lib\LibQTip-1.0\LibQTip-1.0.lua
-#@end-no-lib-strip@
+embeds.xml
 
-BadPet.xml
+BadPet.lua
+BadPet-ldb.lua
