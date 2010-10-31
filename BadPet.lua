@@ -411,6 +411,7 @@ function BadPet:OnInitialize()
   dialog:AddToBlizOptions("BadPet: Profiles", "Profiles", "BadPet");
 end
 
+--- Called by framework when addon is enabled.
 function BadPet:OnEnable()
   self.db.profile.enable = true;
 
@@ -418,6 +419,7 @@ function BadPet:OnEnable()
   self:Refresh();
 end
 
+--- Called by framework when addon is disabled.
 function BadPet:OnDisable()
   self.db.profile.enable = false;
 
@@ -425,6 +427,7 @@ function BadPet:OnDisable()
   self:Refresh();
 end
 
+--- Called when profile changes. Calls Refresh on this addon and children.
 function BadPet:RefreshProfile()
   self:Refresh();
   if self.Fixer then
@@ -432,6 +435,7 @@ function BadPet:RefreshProfile()
   end
 end
 
+--- Refreshes this addon's settings using profile and world state.
 function BadPet:Refresh()
   local register = self:GetInInstance();
 

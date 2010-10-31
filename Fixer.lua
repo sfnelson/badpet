@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 -- BadPet @project-version@
--- File:    BadPet-ldb.lua
+-- File:    Fixer.lua
 -- Author:  @project-author@
 -- License: LICENSE.txt
 --------------------------------------------------------------------------------
@@ -187,6 +187,7 @@ function Fixer:OnInitialize()
   dialog:AddToBlizOptions("BadPet: Fixer", "Fixer", "BadPet");
 end
 
+--- Called by framework when user enables module, and after load.
 function Fixer:OnEnable()
   self.parent.db.profile.fixer = true;
 
@@ -200,6 +201,7 @@ function Fixer:OnEnable()
   end
 end
 
+--- Called by framework when user disables module.
 function Fixer:OnDisable()
   self.parent.db.profile.fixer = false;
 
@@ -211,7 +213,7 @@ function Fixer:OnDisable()
   self.ldbdata.OnEnter = function (frame) end
 end
 
---- Update the LDB Object.
+--- Updates the LDB Object, Frame, and spells.
 function Fixer:Refresh()
   if not self.parent.db.profile.fixer then
     self.ldbdata.text = "Bad Pet";
