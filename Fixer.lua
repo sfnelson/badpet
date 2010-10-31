@@ -149,17 +149,17 @@ function Fixer:RefreshSpells()
   self.spells = {};
 
   for spell, id in pairs(self.parent.addonSpells) do
-	local c = {};
-	c.name = spell;
-	c.type = "toggle";
-	inside.args[tostring(id)] = c;
-	outside.args[tostring(id)] = c;
+    local c = {};
+    c.name = spell;
+    c.type = "toggle";
+    inside.args[tostring(id)] = c;
+    outside.args[tostring(id)] = c;
 
     if db and db[where] and db[where][id] ~= nil then
-	  self.spells[spell] = db[where][id];
-	else
-	  self.spells[spell] = not inInstance;
-	end
+      self.spells[spell] = db[where][id];
+    else
+      self.spells[spell] = not inInstance;
+    end
   end
 
   LibStub("AceConfigRegistry-3.0"):NotifyChange("BadPet: Fixer");
@@ -227,24 +227,24 @@ function Fixer:Refresh()
 
   local inInstance = self.parent:GetInInstance();
   for name,goal in pairs(self.spells) do
-	local castable,state = GetSpellAutocast(name, BOOKTYPE_PET);
-	if castable then
-	  if goal == not state then
-		color = "|cffff0000"
-		macrotext = macrotext .. "/petautocasttoggle "..name.."\n";
-	  end
-	 end
+    local castable,state = GetSpellAutocast(name, BOOKTYPE_PET);
+    if castable then
+      if goal == not state then
+        color = "|cffff0000"
+        macrotext = macrotext .. "/petautocasttoggle "..name.."\n";
+      end
+     end
   end
 
   if not color then
-	color = "|cff00ff00"
+    color = "|cff00ff00"
   end
 
   self.frame:SetAttribute("macrotext", macrotext);
   if pet then
-	self.ldbdata.text = color..pet.."|r";
+    self.ldbdata.text = color..pet.."|r";
   else
-	self.ldbdata.text = "Bad Pet";
+    self.ldbdata.text = "Bad Pet";
   end
 end
 
@@ -309,51 +309,51 @@ end
 
 Fixer.cellPrototype = {
   SetupCell = function (frame, tooltip, value, align, font)
-	local fs = frame.fontString;
-	fs:SetFontObject(font or tooltip:GetFont());
-	fs:SetJustifyH(align);
+    local fs = frame.fontString;
+    fs:SetFontObject(font or tooltip:GetFont());
+    fs:SetJustifyH(align);
 
-	frame.value = value;
-	frame:RefreshCell();
+    frame.value = value;
+    frame:RefreshCell();
 
-	frame:SetAttribute("macrotext", "/petautocasttoggle "..value);
+    frame:SetAttribute("macrotext", "/petautocasttoggle "..value);
 
-	frame:Show();
-	return fs:GetStringWidth(), fs:GetStringHeight();
+    frame:Show();
+    return fs:GetStringWidth(), fs:GetStringHeight();
   end,
   RefreshCell = function (frame)
-	local castable, state = GetSpellAutocast(frame.value, BOOKTYPE_PET);
-	if not castable then
-	  frame.fontString:SetText("error");
-	else
-	  local goal = Fixer.spells[frame.value];
-	  if goal and state or not goal and not state then
-		frame.fontString:SetTextColor(0, 1, 0);
-	  else
-		frame.fontString:SetTextColor(1, 0, 0);
-	  end
-	  if state then
-		frame.fontString:SetText("on");
-	  else
-		frame.fontString:SetText("off");
-	  end
-	end
+    local castable, state = GetSpellAutocast(frame.value, BOOKTYPE_PET);
+    if not castable then
+      frame.fontString:SetText("error");
+    else
+      local goal = Fixer.spells[frame.value];
+      if goal and state or not goal and not state then
+        frame.fontString:SetTextColor(0, 1, 0);
+      else
+        frame.fontString:SetTextColor(1, 0, 0);
+      end
+      if state then
+        frame.fontString:SetText("on");
+      else
+        frame.fontString:SetText("off");
+      end
+    end
   end,
   InitCell = function (frame)
-	frame.fontString = frame:CreateFontString();
-	frame.fontString:SetAllPoints(frame);
-	frame:SetAttribute("type","macro");
-	frame:SetAttribute("macrotext", "");
-	frame:SetScript("PostClick", function (frame, ...)
+    frame.fontString = frame:CreateFontString();
+    frame.fontString:SetAllPoints(frame);
+    frame:SetAttribute("type","macro");
+    frame:SetAttribute("macrotext", "");
+    frame:SetScript("PostClick", function (frame, ...)
       frame:RefreshCell();
     end );
   end,
   ResetCell = function (frame)
-	frame.value = nil;
-	frame.fontString:SetText("");
-	frame.fontString:SetTextColor(frame.r, frame.g, frame.b);
-	frame:SetAttribute("type","macro");
-	frame:SetAttribute("macrotext", "");
+    frame.value = nil;
+    frame.fontString:SetText("");
+    frame.fontString:SetTextColor(frame.r, frame.g, frame.b);
+    frame:SetAttribute("type","macro");
+    frame:SetAttribute("macrotext", "");
   end,
 }
 

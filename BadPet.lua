@@ -48,19 +48,19 @@ BadPet.options = {
   set = "SetOption",
   get = "GetOption",
   args = {
-	enable = {
-	  name = "Enable",
-	  desc = "Enables / disables the addon.",
-	  type = "toggle",
-	  order = 1,
-	},
+    enable = {
+      name = "Enable",
+      desc = "Enables / disables the addon.",
+      type = "toggle",
+      order = 1,
+    },
     general = {
       name = "General",
       type = "group",
       order = 2,
-	  handler = BadPet,
-	  set = "SetOption",
-	  get = "GetOption",
+      handler = BadPet,
+      set = "SetOption",
+      get = "GetOption",
       args = {
         state = {
           name = "Report Frequency",
@@ -93,7 +93,7 @@ BadPet.options = {
         ignore = {
           name = "Spells to ignore",
           type = "group",
-		  handler = BadPet,
+          handler = BadPet,
           set = "SetSpellState",
           get = "GetSpellState",
           order = 60;
@@ -117,69 +117,69 @@ BadPet.options = {
       get = "GetOption",
       hidden = true,
       args = {
-		enable = {
-		  name = "Enable Addon",
-		  type = "execute",
-		  func = function () BadPet:Enable(); end,
-		  order = 10;
-		},
-		disable = {
-		  name = "Disable Addon",
-		  type = "execute",
-		  func = function () BadPet:Disable(); end,
-		  order = 20;
-		},
-		status = {
-		  name = "Show Status",
-		  type = "execute",
-		  func = function () BadPet:Status(); end,
-		  order = 30;
-		},
-		test = {
-		  name = "Print a test report",
-		  type = "execute",
-		  func = function () BadPet:Test(); end,
-		  order = 40;
-		  hidden = true;
-		  width = "half",
-		},
-		quiet = {
-		  name = "Limit reports to once per combat",
-		  type = "execute",
-		  func = function () BadPet:SetProperty("state", "quiet"); end,
-		  order = 50;
-		},
-		noisy = {
-		  name = "Report all taunts",
-		  type = "execute",
-		  func = function () BadPet:SetProperty("state", "noisy"); end,
-		  order = 60;
-		},
-		private = {
-		  name = "Report only in the chat frame",
-		  type = "execute",
-		  func = function () BadPet:SetProperty("frame", "private"); end,
-		  order = 70;
-		},
-		whisper = {
-		  name = "Report as a whisper",
-		  type = "execute",
-		  func = function () BadPet:SetProperty("frame", "whisper"); end,
-		  order = 80;
-		},
-		party = {
-		  name = "Report to party/raid",
-		  type = "execute",
-		  func = function () BadPet:SetProperty("frame", "party"); end,
-		  order = 90;
-		},
-		debug = {
-		  name = "Debug",
-		  type = "toggle",
-		  hidden = true,
-		},
-	  },
-	},
+        enable = {
+          name = "Enable Addon",
+          type = "execute",
+          func = function () BadPet:Enable(); end,
+          order = 10;
+        },
+        disable = {
+          name = "Disable Addon",
+          type = "execute",
+          func = function () BadPet:Disable(); end,
+          order = 20;
+        },
+        status = {
+          name = "Show Status",
+          type = "execute",
+          func = function () BadPet:Status(); end,
+          order = 30;
+        },
+        test = {
+          name = "Print a test report",
+          type = "execute",
+          func = function () BadPet:Test(); end,
+          order = 40;
+          hidden = true;
+          width = "half",
+        },
+        quiet = {
+          name = "Limit reports to once per combat",
+          type = "execute",
+          func = function () BadPet:SetProperty("state", "quiet"); end,
+          order = 50;
+        },
+        noisy = {
+          name = "Report all taunts",
+          type = "execute",
+          func = function () BadPet:SetProperty("state", "noisy"); end,
+          order = 60;
+        },
+        private = {
+          name = "Report only in the chat frame",
+          type = "execute",
+          func = function () BadPet:SetProperty("frame", "private"); end,
+          order = 70;
+        },
+        whisper = {
+          name = "Report as a whisper",
+          type = "execute",
+          func = function () BadPet:SetProperty("frame", "whisper"); end,
+          order = 80;
+        },
+        party = {
+          name = "Report to party/raid",
+          type = "execute",
+          func = function () BadPet:SetProperty("frame", "party"); end,
+          order = 90;
+        },
+        debug = {
+          name = "Debug",
+          type = "toggle",
+          hidden = true,
+        },
+      },
+    },
   },
 };
 
@@ -299,15 +299,15 @@ function BadPet:RefreshSpells()
   toAdd.args = {};
 
   if self.db.profile.spells then
-	for id,_ in pairs(self.db.profile.spells) do
-	  local spell = GetSpellInfo(id);
-	  if spell then
-		local c = {}
-		c.name = spell;
-		c.type = "toggle";
-		toAdd.args[tostring(id)] = c;
-	  end
-	end
+    for id,_ in pairs(self.db.profile.spells) do
+      local spell = GetSpellInfo(id);
+      if spell then
+        local c = {}
+        c.name = spell;
+        c.type = "toggle";
+        toAdd.args[tostring(id)] = c;
+      end
+    end
   end
 
   local add = {};
@@ -361,13 +361,13 @@ function BadPet:SetSpellState(info, value)
     if not name then
       return;
     elseif self.addonSpells[name] then
-	  if not self.db.profile.ignore then
-		self.db.profile.ignore = {};
-	  end
-	  self.db.profile.ignore[id] = value;
-	elseif self.db.profile.spells and self.db.profile.spells[id] then
-	  self.db.profile.spells = table.remove(self.db.profile.spells, id);
-	end
+      if not self.db.profile.ignore then
+        self.db.profile.ignore = {};
+      end
+      self.db.profile.ignore[id] = value;
+    elseif self.db.profile.spells and self.db.profile.spells[id] then
+      self.db.profile.spells = table.remove(self.db.profile.spells, id);
+    end
   end
 
   self:RefreshSpells();
