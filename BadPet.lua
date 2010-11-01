@@ -7,7 +7,8 @@
 
 if not BadPet then
   local AceAddon = LibStub("AceAddon-3.0");
-  BadPet = AceAddon:NewAddon("BadPet", "AceConsole-3.0", "AceEvent-3.0");
+  BadPet = AceAddon:NewAddon("BadPet", "AceConsole-3.0", "AceEvent-3.0",
+    "AceComm-3.0");
 end
 local BadPet = BadPet;
 
@@ -229,6 +230,10 @@ function BadPet:SetOption(info, value)
     end
   end
 
+  if option == "debug" then
+    self:Refresh();
+  end
+
   self:Status();
 end
 
@@ -409,6 +414,12 @@ function BadPet:OnInitialize()
   dialog:AddToBlizOptions("BadPet", "BadPet");
   self.config = dialog:AddToBlizOptions("BadPet: General", "General", "BadPet");
   dialog:AddToBlizOptions("BadPet: Profiles", "Profiles", "BadPet");
+
+  self:RegisterComm("BadPet");
+end
+
+function BadPet:OnCommReceived(prefix, message, distribution, sender)
+  self:Print(message .. " (" .. sender .. ")");
 end
 
 --- Called by framework when addon is enabled.
