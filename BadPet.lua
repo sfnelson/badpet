@@ -690,7 +690,7 @@ function BadPet:SendMessage(report)
   if report.sent then
     spellText = spellText .. " (reported by " .. report.sent .. ")";
   elseif UnitGUID("pet") == report.pet then
-    targetText = "Your pet, "..report.petname..", ";
+    targetText = "Your pet, "..report.petname..",";
   elseif self.db.profile.frame == FRAME_PARTY then
     if UnitInRaid("player") then
       SendChatMessage(bp..targetText..spellText, "RAID");
