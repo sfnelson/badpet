@@ -282,7 +282,7 @@ function BadPet:Test()
      target = dst,
      targetName = dName;
      spell = 2649,
-     time = Time(),
+     time = time(),
    };
    self:Growl(record);
 end
