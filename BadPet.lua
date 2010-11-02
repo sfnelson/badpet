@@ -625,25 +625,38 @@ function BadPet:OnCommReceived(prefix, msg, distribution, sender)
     return;
   end
 
-  if self.db.profile.debug then
-    self:Print(message .. " (" .. sender .. ")");
+  local debug = self.db.profile.debug;
+
+  local success,report = self:Deserialize(msg);
+  if not success then
+    if debug then
+      self:Print("error deserializing message: "..msg);
+    end
+    return;
   end
 
-  local report = self:Deserialize(msg);
   if not self.queue[report.pet] then
     self.queue[report.pet] = {};
   end
 
   if self.queue[report.pet][report.spell] then
-    local ours = self.queued[report.pet][report.spell];
+    local ours = self.queue[report.pet][report.spell];
     if report.sent then -- already been sent
       ours.sent = sender;
+      if debug then self:Print("supressed, they already sent it"); end
     elseif report.priority > ours.priority then -- theirs wins, they'll send it
       ours.sent = sender;
+      if debug then
+        self:Print("supressed, they've got priority ("
+          ..report.priority..":"..ours.priority..")");
+      end
     end -- otherwise ignore, we'll still send ours
   else -- they saw something we didn't, or don't care about
     report.sent = sender;
     self.queue[report.pet][report.spell] = report;
+    if debug then
+      self:Print("receieved a warning that we didn't see");
+    end
 
     if not self.history[report.pet] then
       self.history[report.pet] = {};
