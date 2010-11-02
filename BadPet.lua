@@ -189,6 +189,14 @@ BadPet.options = {
           func = function () BadPet:SetProperty("frame", FRAME_PARTY); end,
           order = 90;
         },
+        config = {
+          name = "Open Config",
+          type = "execute",
+          func = function ()
+            InterfaceOptionsFrame_OpenToCategory(BadPet.config);
+          end,
+          hidden = true,
+        },
         debug = {
           name = "Debug",
           type = "toggle",

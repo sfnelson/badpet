@@ -20,7 +20,8 @@ local BadPet = BadPet;
 local Fixer = BadPet.Fixer;
 
 if not Fixer then
-  Fixer = BadPet:NewModule("BadPetFixer","AceConsole-3.0", "AceEvent-3.0");
+  Fixer = BadPet:NewModule("BadPetFixer","AceConsole-3.0", "AceEvent-3.0",
+    "AceTimer-3.0");
   Fixer.parent = BadPet;
   BadPet.Fixer = Fixer;
   Fixer.spells = {};
@@ -217,7 +218,7 @@ end
 function Fixer:Refresh()
   if not self.parent.db.profile.fixer then
     self.ldbdata.text = "Bad Pet";
-    self.frame:SetAttribute("macrotext", "/bp");
+    self.frame:SetAttribute("macrotext", "/bp config");
     return;
   end
 
@@ -245,6 +246,10 @@ function Fixer:Refresh()
   self.frame:SetAttribute("macrotext", macrotext);
   if pet then
     self.ldbdata.text = color..pet.."|r";
+
+    if pet == "Unknown" then
+      self:ScheduleTimer("Refresh", 0.5);
+    end
   else
     self.ldbdata.text = "Bad Pet";
   end
