@@ -36,6 +36,7 @@ BadPet.addonSpells = {
    Taunt        = 53477,    -- taunt (hunter pet talent - true taunt)
    Thunderstomp = 63900,    -- thunderstomp (hunter pet talent - damage+threat)
    Suffering    = 17735,    -- suffering (voidwalker - true taunt)
+   TwinHowl     = 58857,    -- twin howl (spirit wolves - true taunt)
 };
 
 BadPet.spells = {};
