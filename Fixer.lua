@@ -195,6 +195,7 @@ function Fixer:OnEnable()
   self:RegisterEvent("PLAYER_ENTERING_WORLD", "Refresh");
   self:RegisterEvent("PET_BAR_UPDATE", "Refresh");
   self:RegisterEvent("UNIT_PET", "Refresh");
+  self:RegisterEvent("PLAYER_REGEN_ENABLED", "Refresh");
   self:Refresh();
 
   self.ldbdata.OnEnter = function (frame)
@@ -209,6 +210,7 @@ function Fixer:OnDisable()
   self:UnregisterEvent("PLAYER_ENTERING_WORLD");
   self:UnregisterEvent("PET_BAR_UPDATE");
   self:UnregisterEvent("UNIT_PET");
+  self:RegisterEvent("PLAYER_REGEN_ENABLED");
   self:Refresh();
 
   self.ldbdata.OnEnter = function (frame) end
@@ -216,9 +218,13 @@ end
 
 --- Updates the LDB Object, Frame, and spells.
 function Fixer:Refresh()
+  local inLockdown = InCombatLockdown()
+
   if not self.parent.db.profile.fixer then
     self.ldbdata.text = "Bad Pet";
-    self.frame:SetAttribute("macrotext", "/bp config");
+    if not inLockdown then
+      self.frame:SetAttribute("macrotext", "/bp config");
+    end
     return;
   end
 
@@ -243,7 +249,9 @@ function Fixer:Refresh()
     color = "|cff00ff00"
   end
 
-  self.frame:SetAttribute("macrotext", macrotext);
+  if not inLockdown then
+    self.frame:SetAttribute("macrotext", macrotext);
+  end
   if pet then
     self.ldbdata.text = color..pet.."|r";
 

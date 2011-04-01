@@ -273,18 +273,20 @@ end
 
 --- Generate a growl event to test the addon in response to a user request.
 function BadPet:Test()
-   self.history = {};
-   local src,dst = UnitGUID("pet"),UnitGUID("player");
-   local sName, dName = UnitName("pet"),UnitName("player");
-   local record = {
-     pet = src or 0,
-     petName = sName or "FakePet",
-     target = dst,
-     targetName = dName;
-     spell = 2649,
-     time = time(),
-   };
-   self:Growl(record);
+  self.history = {};
+  self.history.reset = time();
+  self.queue = {};
+  local src,dst = UnitGUID("pet"),UnitGUID("player");
+  local sName, dName = UnitName("pet"),UnitName("player");
+  local record = {
+    pet = src or 0,
+    petname = sName or "FakePet",
+    target = dst,
+    targetName = dName;
+    spell = 2649,
+    time = time(),
+  };
+  self:Growl(record);
 end
 
 --------------------------------------------------------------------------------
