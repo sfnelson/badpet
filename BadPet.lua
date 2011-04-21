@@ -52,8 +52,9 @@ local defaults = {
     state = STATE_QUIET,
     frame = FRAME_WHISPER,
     debug = false,
-    fixer = true;
-    grace = 0;
+    melee = false,
+    fixer = true,
+    grace = 0,
   },
 };
 
@@ -96,24 +97,13 @@ BadPet.options = {
           style = "radio",
           order = 30,
         },
-        test = {
-          name = "Test",
-          type = "execute",
-          func = "Test",
-          order = 50,
-        },
-        debug = {
-          name = "Debug",
-          type = "toggle",
-          hidden = true,
-        },
         ignore = {
           name = "Spells to ignore",
           type = "group",
           handler = BadPet,
           set = "SetSpellState",
           get = "GetSpellState",
-          order = 60;
+          order = 40,
         },
         add = {
           name = "Extra Spells",
@@ -121,7 +111,23 @@ BadPet.options = {
           handler = BadPet,
           set = "SetSpellState",
           get = "GetSpellState",
-          order = 70;
+          order = 50,
+        },
+        melee = {
+          name = "Show melee hits on pets",
+          type = "toggle",
+          order = 60,
+        },
+        test = {
+          name = "Test",
+          type = "execute",
+          func = "Test",
+          order = 70,
+        },
+        debug = {
+          name = "Debug",
+          type = "toggle",
+          hidden = true,
         },
       },
     },
@@ -198,6 +204,10 @@ BadPet.options = {
           end,
           hidden = true,
         },
+        melee = {
+          name = "Show melee hits on pets",
+          type = "toggle",
+	    },
         debug = {
           name = "Debug",
           type = "toggle",
@@ -512,7 +522,7 @@ end
 -- player's raid or party, and the spell is on our list of 'bad' spells,
 -- then this event will trigger an addon event to report the pet.
 function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
-  local ttype, sGUID, sName, sFlags, dGUID, dName, _, spellid, spellname
+  local ttype, sGUID, sName, sFlags, dGUID, dName, dFlags, spellid, spellname
     = select(3, ...);
 
   if
@@ -532,6 +542,31 @@ function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
       targetname = dName,
       spell = spellid,
       spellname = spellname,
+      time = time(),
+    };
+    self:Growl(report);
+  elseif
+    (ttype == "SWING_DAMAGE" or ttype == "SWING_MISS")
+  and
+    (bit.band(COMBATLOG_OBJECT_TYPE_MASK, dFlags) == COMBATLOG_OBJECT_TYPE_PET)
+  and
+    (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, dFlags)
+      <= COMBATLOG_OBJECT_AFFILIATION_RAID)
+  and
+    self.db.profile.melee
+  then
+    local hit = "hit";
+    if (ttype == "SWING_MISS") then
+      hit = "miss"
+    end
+    local report = {
+      pet = dGUID,
+      petname = dName,
+      target = sGUID,
+      targetname = sName,
+      spell = 1,
+      spellname = "melee",
+      hittype = hit,
       time = time(),
     };
     self:Growl(report);
@@ -690,7 +725,9 @@ function BadPet:CheckQueue(report)
 
   self:SendMessage(report);
 
-  self.queue[report.pet][report.spell] = nil;
+  if self.queue[report.pet] then
+  	self.queue[report.pet][report.spell] = nil;
+  end
 end
 
 --- Send a warning message to the appropriate frame.
@@ -703,11 +740,14 @@ function BadPet:SendMessage(report)
   targetText = playername.."'s pet, "..report.petname..",";
 
   -- construct spell message
-  if report.targetname then
+  if report.spell == 1 then
+    spellText = " was " .. report.hittype .. " by "
+     .. report.targetname;
+  elseif report.targetname then
     spellText = " used " .. GetSpellLink(report.spell)
-      .. " to taunt " .. report.targetname;
+      .. " on " .. report.targetname;
   else
-    spellText = " used " .. GetSpellLink(report.spell).." (taunt)"
+    spellText = " used " .. GetSpellLink(report.spell).." (aoe)"
   end
 
   -- send message
