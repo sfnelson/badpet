@@ -855,3 +855,4 @@ function BadPet:MigrateDepricatedSettings()
     self.db.profile.grace = 0;
   end
 end
+
