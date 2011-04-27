@@ -522,7 +522,7 @@ end
 -- player's raid or party, and the spell is on our list of 'bad' spells,
 -- then this event will trigger an addon event to report the pet.
 function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
-  local ttype, sGUID, sName, sFlags, dGUID, dName, dFlags, spellid, spellname
+  local ttype, _, sGUID, sName, sFlags, dGUID, dName, dFlags, spellid, spellname
     = select(3, ...);
 
   if
