@@ -1,4 +1,4 @@
-## Interface: 40200
+## Interface: 40300
 ## Title: BadPet
 ## Notes: Detects and reports pet taunts in dungeons. Helps pet classes prevent them (/badpet or /bp to configure)
 ## Author: sfnelson
