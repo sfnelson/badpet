@@ -655,7 +655,7 @@ function BadPet:BroadcastReport(report)
   local distribution;
   if UnitInRaid("player") then -- we're in a raid
     distribution = "RAID";
-  elseif GetNumPartyMembers() > 0 then -- we're in a party
+  elseif GetNumGroupMembers() > 0 then -- we're in a party
     distribution = "PARTY";
   else -- not in a group, swallow the message
     return
@@ -759,7 +759,7 @@ function BadPet:SendMessage(report)
     if UnitInRaid("player") then
       SendChatMessage(bp..targetText..spellText, "RAID");
       return;
-    elseif GetNumPartyMembers() > 0 then
+    elseif GetNumGroupMembers() > 0 then
       SendChatMessage(bp..targetText..spellText, "PARTY");
       return;
     end
@@ -788,7 +788,7 @@ end
 -- @param petGUID the pet's
 function BadPet:GetOwnerName(petGUID)
   local pet;
-  for i = 1, GetNumRaidMembers() do
+  for i = 1, GetNumGroupMembers() do
     pet = UnitGUID("raidpet"..i);
     if (pet and pet == petGUID) then
       return (GetUnitName("raid"..i,true)or""):gsub(" ","");
