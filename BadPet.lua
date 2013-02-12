@@ -756,13 +756,14 @@ function BadPet:SendMessage(report)
   elseif UnitGUID("pet") == report.pet then
     targetText = "Your pet, "..report.petname..",";
   elseif self.db.profile.frame == FRAME_PARTY then
-    if UnitInRaid("player") then
+    if GetNumGroupMembers(LE_PARTY_CATEGORY_INSTANCE) > 0 then
+      SendChatMessage(bp..targetText..spellText, "INSTANCE_CHAT");
+    elseif UnitInRaid("player") then
       SendChatMessage(bp..targetText..spellText, "RAID");
-      return;
-    elseif GetNumGroupMembers() > 0 then
+    elseif GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > 0 then
       SendChatMessage(bp..targetText..spellText, "PARTY");
-      return;
     end
+    return;
   elseif self.db.profile.frame == FRAME_WHISPER then
     targetText = bp.."Your pet, "..report.petname..",";
     SendChatMessage(targetText..spellText, "WHISPER",
@@ -787,24 +788,32 @@ end
 --- Work out the name of the owner of a particular pet.
 -- @param petGUID the pet's
 function BadPet:GetOwnerName(petGUID)
-  local pet;
-  for i = 1, GetNumGroupMembers() do
-    pet = UnitGUID("raidpet"..i);
+  local ownerName,ownerRealm
+  for i = 1, GetNumGroupMembers(), 1 do
+    pet = UnitGUID("raidpet"..i)
     if (pet and pet == petGUID) then
-      return (GetUnitName("raid"..i,true)or""):gsub(" ","");
+      ownerName,ownerRealm = UnitName("raid"..i)
+      if ownerRealm then
+        ownerName = ownerName .. "-" .. ownerRealm
+      end
+      return ownerName
     end
   end
   for i = 1,4 do
-    pet = UnitGUID("partypet"..i);
+    pet = UnitGUID("partypet"..i)
     if (pet and pet == petGUID) then
-      return (GetUnitName("party"..i,true)or""):gsub(" ","");
+      ownerName,ownerRealm = UnitName("party"..i)
+      if ownerRealm then
+        ownerName = ownerName .. "-" .. ownerRealm
+      end
+      return ownerName
     end
   end
   pet = UnitGUID("pet");
   if (pet and pet == petGUID) then
-    return UnitName("player");
+    return UnitName("player")
   else
-    return "Unknown";
+    return "Unknown"
   end
 end
 
