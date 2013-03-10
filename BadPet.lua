@@ -737,7 +737,7 @@ function BadPet:SendMessage(report)
   local bp = ADDON_PREFIX..": ";
 
   -- construct pet message
-  targetText = playername.."'s pet, "..report.petname..",";
+  targetText = playername.."'s pet, "..(report.petname or "unknown")..",";
 
   -- construct spell message
   if report.spell == 1 then
