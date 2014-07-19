@@ -5,6 +5,7 @@ optional-dependencies:
 
 tools-used:
  - wowlua
+ - intellij
 
 ignore:
  - .pkgmeta

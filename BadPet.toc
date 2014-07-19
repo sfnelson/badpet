@@ -1,8 +1,9 @@
 ## Interface: 50400
 ## Title: BadPet
 ## Notes: Detects and reports pet taunts in dungeons. Helps pet classes prevent them (/badpet or /bp to configure)
-## Author: sfnelson
-## SavedVariables: BadPetDB, BadPet_State, BadPet_Frame, BadPet_Debug
+## Author: @project-author@
+## Version: @project-version@
+## SavedVariables: BadPetDB
 ## OptionalDeps: Ace3, LibDataBroker-1.1, LibQTip-1.0
 
 #@no-lib-strip@
@@ -26,6 +27,10 @@ libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 libs\LibQTip-1.0\LibQTip-1.0.lua
 #@end-no-lib-strip@
 
+localization.lua
+localization.en.lua
+localization.es.lua
 
 BadPet.lua
+Data.lua
 Fixer.lua

@@ -5,12 +5,14 @@
 -- License: LICENSE.txt
 --------------------------------------------------------------------------------
 
-if not BadPet then
-  local AceAddon = LibStub("AceAddon-3.0");
-  BadPet = AceAddon:NewAddon("BadPet", "AceConsole-3.0", "AceEvent-3.0",
-    "AceComm-3.0", "AceSerializer-3.0", "AceTimer-3.0");
+local addon = BadPet;
+if not addon then
+    local AceAddon = LibStub("AceAddon-3.0");
+    addon = AceAddon:NewAddon("BadPet", "AceConsole-3.0", "AceEvent-3.0",
+        "AceComm-3.0", "AceSerializer-3.0", "AceTimer-3.0");
 end
-local BadPet = BadPet;
+BadPet = addon;
+local BadPet = addon;
 
 --------------------------------------------------------------------------------
 -- Constants
@@ -26,278 +28,259 @@ local FRAME_PARTY = "party";
 local IS_ME_PRIORITY = 10000;
 local MAX_PRIORITY = IS_ME_PRIORITY - 1;
 
+local L = BadPetI18N[GetLocale()];
+
 --------------------------------------------------------------------------------
 -- Configuration
 --------------------------------------------------------------------------------
 
 --- Spells which the addon tracks.
-BadPet.addonSpells = {
-   Growl        = 2649,     -- growl (generic hunter pet - increases threat)
-   Taunt        = 53477,    -- taunt (hunter pet talent - true taunt)
-   Suffering    = 17735,    -- suffering (voidwalker - true taunt)
-   TwinHowl     = 58857,    -- twin howl (spirit wolves - true taunt)
--- Thunderstomp = 63900,    -- thunderstomp (hunter pet talent - damage+threat)
-};
+BadPet.addonSpells = {}
+BadPet.addonSpells[2649] = "Growl"; -- growl (generic hunter pet - increases threat)
+BadPet.addonSpells[53477] = "Taunt"; -- taunt (hunter pet talent - true taunt)
+BadPet.addonSpells[17735] = "Suffering"; -- suffering (voidwalker - true taunt)
+--BadPet.addonSpells[63900] = "Thunderstomp"; -- thunderstomp (hunter pet talent - damage+threat)
 
 BadPet.spells = {};
 
---- Structures for event tracking.
-BadPet.history = { reset = 0 };
-BadPet.queue = {};
-
 --- Default settings for BadPetDB.
 local defaults = {
-  profile = {
-    enable = true,
-    state = STATE_QUIET,
-    frame = FRAME_WHISPER,
-    debug = false,
-    melee = false,
-    fixer = true,
-    grace = 0,
-  },
+    profile = {
+        enable = true,
+        state = STATE_QUIET,
+        frame = FRAME_WHISPER,
+        debug = false,
+        melee = false,
+        fixer = true,
+        grace = 0,
+    },
 };
 
 --- Configuration options.
 BadPet.options = {
-  name = "BadPet",
-  type = 'group',
-  handler = BadPet,
-  set = "SetOption",
-  get = "GetOption",
-  args = {
-    enable = {
-      name = "Enable",
-      desc = "Enables / disables the addon.",
-      type = "toggle",
-      order = 1,
+    type = 'group',
+    args = {
+        general = {
+            name = L["BadPet"],
+            type = "group",
+            order = 10,
+            handler = BadPet,
+            set = "SetOption",
+            get = "GetOption",
+            args = {
+                enable = {
+                    name = "Enable",
+                    desc = "Enables / disables the addon.",
+                    type = "toggle",
+                    order = 10,
+                    width = "half",
+                },
+                test = {
+                    name = "Test",
+                    desc = "Generates a fake growl notification (appears in chat from after a second)",
+                    type = "execute",
+                    func = "Test",
+                    order = 20,
+                    width = "half",
+                },
+                state = {
+                    name = "Report Frequency",
+                    desc = "Report every time a pet taunts (noisy)" ..
+                            " or once per combat (quiet).",
+                    type = "select",
+                    values = { STATE_QUIET, STATE_NOISY },
+                    style = "radio",
+                    width = "half",
+                    order = 30,
+                },
+                frame = {
+                    name = "Report Destination",
+                    desc = "Report to private, whisper, or party.",
+                    type = "select",
+                    values = { FRAME_PRIVATE, FRAME_WHISPER, FRAME_PARTY },
+                    style = "radio",
+                    width = "half",
+                    order = 40,
+                },
+                add = {
+                    name = "Extra Spells",
+                    desc = "Allows you to add additional spells that BadPet should track",
+                    type = "group",
+                    handler = BadPet,
+                    set = "SetSpellState",
+                    get = "GetSpellState",
+                    order = 50,
+                },
+                ignore = {
+                    name = "Ignore Spells",
+                    desc = "Allows you to prevent BadPet from tracking specific spells",
+                    type = "group",
+                    handler = BadPet,
+                    set = "SetSpellState",
+                    get = "GetSpellState",
+                    order = 60,
+                },
+                melee = {
+                    name = "Show melee hits on pets",
+                    desc = "Send a message when a pet receives a melee attack.",
+                    type = "toggle",
+                    order = 70,
+                    width = "full",
+                },
+                debug = {
+                    name = "Debug",
+                    type = "toggle",
+                    hidden = function()
+                        return not BadPet.db.profile.debug;
+                    end
+                },
+            },
+        },
+        cmd = {
+            name = "Commandline Options",
+            type = "group",
+            order = 20,
+            handler = BadPet,
+            set = "SetOption",
+            get = "GetOption",
+            hidden = true,
+            args = {
+                enable = {
+                    name = "Enable Addon",
+                    type = "execute",
+                    func = function() BadPet:Enable(); end,
+                    order = 10;
+                },
+                disable = {
+                    name = "Disable Addon",
+                    type = "execute",
+                    func = function() BadPet:Disable(); end,
+                    order = 20;
+                },
+                status = {
+                    name = "Show Status",
+                    type = "execute",
+                    func = function() BadPet:Status(); end,
+                    order = 30;
+                },
+                test = {
+                    name = "Print a test report",
+                    type = "execute",
+                    func = function() BadPet:Test(); end,
+                    order = 40;
+                    hidden = true;
+                },
+                quiet = {
+                    name = "Limit reports to once per combat",
+                    type = "execute",
+                    func = function() BadPet:SetProperty("state", STATE_QUIET); end,
+                    order = 50;
+                },
+                noisy = {
+                    name = "Report all taunts",
+                    type = "execute",
+                    func = function() BadPet:SetProperty("state", STATE_NOISY); end,
+                    order = 60;
+                },
+                private = {
+                    name = "Report only in the chat frame",
+                    type = "execute",
+                    func = function() BadPet:SetProperty("frame", FRAME_PRIVATE); end,
+                    order = 70;
+                },
+                whisper = {
+                    name = "Report as a whisper",
+                    type = "execute",
+                    func = function() BadPet:SetProperty("frame", FRAME_WHISPER); end,
+                    order = 80;
+                },
+                party = {
+                    name = "Report to party/raid",
+                    type = "execute",
+                    func = function() BadPet:SetProperty("frame", FRAME_PARTY); end,
+                    order = 90;
+                },
+                config = {
+                    name = "Open Config",
+                    type = "execute",
+                    func = function()
+                        InterfaceOptionsFrame_OpenToCategory(BadPet.config);
+                        InterfaceOptionsFrame_OpenToCategory(BadPet.config);
+                    end,
+                    hidden = true,
+                },
+                melee = {
+                    name = "Show melee hits on pets",
+                    type = "toggle",
+                },
+                debug = {
+                    name = "Debug",
+                    type = "toggle",
+                    hidden = true,
+                },
+            },
+        },
     },
-    general = {
-      name = "General",
-      type = "group",
-      order = 2,
-      handler = BadPet,
-      set = "SetOption",
-      get = "GetOption",
-      args = {
-        state = {
-          name = "Report Frequency",
-          desc = "Report every time a pet taunts (noisy)"..
-            " or once per combat (quiet).",
-          type = "select",
-          values = { STATE_QUIET, STATE_NOISY },
-          style = "radio",
-          order = 20,
-        },
-        frame = {
-          name = "Report Destination",
-          desc = "Report to private, whisper, or party.",
-          type = "select",
-          values = { FRAME_PRIVATE, FRAME_WHISPER, FRAME_PARTY },
-          style = "radio",
-          order = 30,
-        },
-        ignore = {
-          name = "Spells to ignore",
-          type = "group",
-          handler = BadPet,
-          set = "SetSpellState",
-          get = "GetSpellState",
-          order = 40,
-        },
-        add = {
-          name = "Extra Spells",
-          type = "group",
-          handler = BadPet,
-          set = "SetSpellState",
-          get = "GetSpellState",
-          order = 50,
-        },
-        melee = {
-          name = "Show melee hits on pets",
-          type = "toggle",
-          order = 60,
-        },
-        test = {
-          name = "Test",
-          type = "execute",
-          func = "Test",
-          order = 70,
-        },
-        debug = {
-          name = "Debug",
-          type = "toggle",
-          hidden = true,
-        },
-      },
-    },
-    cmd = {
-      name = "Commandline Options",
-      type = "group",
-      order = 3,
-      handler = BadPet,
-      set = "SetOption",
-      get = "GetOption",
-      hidden = true,
-      args = {
-        enable = {
-          name = "Enable Addon",
-          type = "execute",
-          func = function () BadPet:Enable(); end,
-          order = 10;
-        },
-        disable = {
-          name = "Disable Addon",
-          type = "execute",
-          func = function () BadPet:Disable(); end,
-          order = 20;
-        },
-        status = {
-          name = "Show Status",
-          type = "execute",
-          func = function () BadPet:Status(); end,
-          order = 30;
-        },
-        test = {
-          name = "Print a test report",
-          type = "execute",
-          func = function () BadPet:Test(); end,
-          order = 40;
-          hidden = true;
-          width = "half",
-        },
-        quiet = {
-          name = "Limit reports to once per combat",
-          type = "execute",
-          func = function () BadPet:SetProperty("state", STATE_QUIET); end,
-          order = 50;
-        },
-        noisy = {
-          name = "Report all taunts",
-          type = "execute",
-          func = function () BadPet:SetProperty("state", STATE_NOISY); end,
-          order = 60;
-        },
-        private = {
-          name = "Report only in the chat frame",
-          type = "execute",
-          func = function () BadPet:SetProperty("frame", FRAME_PRIVATE); end,
-          order = 70;
-        },
-        whisper = {
-          name = "Report as a whisper",
-          type = "execute",
-          func = function () BadPet:SetProperty("frame", FRAME_WHISPER); end,
-          order = 80;
-        },
-        party = {
-          name = "Report to party/raid",
-          type = "execute",
-          func = function () BadPet:SetProperty("frame", FRAME_PARTY); end,
-          order = 90;
-        },
-        config = {
-          name = "Open Config",
-          type = "execute",
-          func = function ()
-            InterfaceOptionsFrame_OpenToCategory(BadPet.config);
-          end,
-          hidden = true,
-        },
-        melee = {
-          name = "Show melee hits on pets",
-          type = "toggle",
-	    },
-        debug = {
-          name = "Debug",
-          type = "toggle",
-          hidden = true,
-        },
-      },
-    },
-  },
 };
 
 --- Retrieve a configuration option.
 function BadPet:GetOption(info)
-  local option = info[#info];
+    local option = info[#info];
 
-  if info.type == "select" then
-    local setting = self.db.profile[option];
-    for k,v in pairs(info.option.values) do
-      if v == setting then
-        return k;
-      end
+    if info.type == "select" then
+        local setting = self.db.profile[option];
+        for k, v in pairs(info.option.values) do
+            if v == setting then
+                return k;
+            end
+        end
     end
-  end
 
-  return self.db.profile[info[#info]];
+    return self.db.profile[info[#info]];
 end
 
 --- Set a configuration option.
 function BadPet:SetOption(info, value)
-  local option = info[#info];
+    local option = info[#info];
 
-  if info.type == "select" then
-    self.db.profile[option] = info.option.values[value];
-  else
-    self.db.profile[option] = value;
-  end
-
-  if self.db.profile.debug then
-    self:Print(option .. " set to " .. tostring(self.db.profile[option]));
-  end
-
-  if option == "enable" then
-    if value then
-      self:Enable();
+    if info.type == "select" then
+        self.db.profile[option] = info.option.values[value];
     else
-      self:Disable();
+        self.db.profile[option] = value;
     end
-  end
 
-  if option == "fixer" then
-    if value then
-      self.Fixer:Enable();
-    else
-      self.Fixer:Disable();
+    self:Debug(option .. " set to " .. tostring(self.db.profile[option]));
+
+    if option == "enable" then
+        if value then
+            self:Enable();
+        else
+            self:Disable();
+        end
     end
-  end
 
-  if option == "debug" then
-    self:Refresh();
-  end
+    if option == "fixer" then
+        if value then
+            self.Fixer:Enable();
+        else
+            self.Fixer:Disable();
+        end
+    end
 
-  self:Status();
+    if option == "debug" then
+        self:Refresh();
+    end
+
+    self:Status();
 end
 
 --- Set a configuration option (directly)
 function BadPet:SetProperty(option, value)
-  self.db.profile[option] = value;
+    self.db.profile[option] = value;
 
-  if self.db.profile.debug then
-    self:Print(option .. " set to " .. tostring(self.db.profile[option]));
-  end
+    self:Debug(option .. " set to " .. tostring(self.db.profile[option]));
 
-  self:Status();
-end
-
---- Generate a growl event to test the addon in response to a user request.
-function BadPet:Test()
-  self.history = {};
-  self.history.reset = time();
-  self.queue = {};
-  local src,dst = UnitGUID("pet"),UnitGUID("player");
-  local sName, dName = UnitName("pet"),UnitName("player");
-  local record = {
-    pet = src or 0,
-    petname = sName or "FakePet",
-    target = dst,
-    targetName = dName;
-    spell = 2649,
-    time = time(),
-  };
-  self:Growl(record);
+    self:Status();
 end
 
 --------------------------------------------------------------------------------
@@ -306,117 +289,128 @@ end
 
 --- Recreate the spells option page
 function BadPet:RefreshSpells()
-  self.spells = {};
+    local ignore, extra, spells;
 
-  local ignore = self.db.profile.ignore;
-
-  if not ignore then
-    ignore = {};
-  end
-
-  for spell,id in pairs(self.addonSpells) do
-    if not ignore[id] then
-      self.spells[spell] = id;
+    -- rebuild tracked spells list
+    ignore = self.db.profile.ignore or {};
+    extra = self.db.profile.spells or {};
+    spells = {};
+    for id, name in pairs(self.addonSpells) do
+        if not ignore[id] then
+            spells[id] = name;
+        end
     end
-  end
-
-  if self.db.profile.spells then
-    for id,_ in pairs(self.db.profile.spells) do
-      local spell = GetSpellInfo(id);
-      if spell then
-        self.spells[spell] = id;
-      end
+    for id, name in pairs(extra) do
+        spells[id] = name;
     end
-  end
-
-  local toIgnore = self.options.args.general.args.ignore;
-
-  toIgnore.args = {};
-
-  for spell,id in pairs(self.addonSpells) do
-    local c = {}
-    c.name = spell;
-    c.type = "toggle";
-    toIgnore.args[tostring(id)] = c;
-  end
-
-  local toAdd = self.options.args.general.args.add;
-
-  toAdd.args = {};
-
-  if self.db.profile.spells then
-    for id,_ in pairs(self.db.profile.spells) do
-      local spell = GetSpellInfo(id);
-      if spell then
-        local c = {}
-        c.name = spell;
-        c.type = "toggle";
-        toAdd.args[tostring(id)] = c;
-      end
+    if self.db.profile.debug then
+        local tracked = "";
+        for _, name in pairs(spells) do
+            tracked = tracked .. " " .. name
+        end
+        self:Debug("Tracking the following spells:" .. tracked);
     end
-  end
+    self.spells = spells;
 
-  local add = {};
-  add.name = "Add SpellId";
-  add.type = "input";
-  add.desc = "Enter a spell id to add to the watch list (pet spells only)";
-  toAdd.args["add"] = add;
+    -- update ignored spells config
+    local ignoreConfig = self.options.args.general.args.ignore;
+    ignoreConfig.args = {};
+    for id, name in pairs(self.addonSpells) do
+        ignoreConfig.args[tostring(id)] = { name = name, desc = GetSpellInfo(id), type = "toggle" };
+    end
 
-  LibStub("AceConfigRegistry-3.0"):NotifyChange("BadPet: General");
+    local extraConfig = self.options.args.general.args.add;
+    extraConfig.args = {};
+    for id, name in pairs(extra) do
+        extraConfig.args[tostring(id)] = { name = name, type = "toggle", order = 1 };
+    end
+    local add = {
+        name = "Add Spell ID",
+        type = "input",
+        desc = "Enter a spell id to add to the watch list (only pet spells will be tracked)",
+        order = 100;
+        width = "full";
+    };
+    extraConfig.args["add"] = add;
+
+    LibStub("AceConfigRegistry-3.0"):NotifyChange("BadPet: General");
 end
 
 --- Get the state of a spell in the spells option table
 function BadPet:GetSpellState(info)
 
-  if info[#info] == "add" then
-    return "";
-  end
+    if info[#info] == "add" then
+        return "";
+    end
 
-  local id = tonumber(info[#info]);
+    local id = tonumber(info[#info]);
 
-  if self.db.profile.ignore and self.db.profile.ignore[id] then
-    return true;
-  end
+    if self.db.profile.ignore and self.db.profile.ignore[id] then
+        return true;
+    end
 
-  if self.db.profile.spells and self.db.profile.spells[id] then
-    return true;
-  end
+    if self.db.profile.spells and self.db.profile.spells[id] then
+        return true;
+    end
 
-  return false;
+    return false;
+end
+
+
+local function extra(self)
+    local extra = self.db.profile.spells;
+    if type(extra) ~= "table" then
+        extra = {};
+        self.db.profile.spells = extra;
+    end
+    return extra;
+end
+
+local function ignore(self)
+    local ignore = self.db.profile.ignore;
+    if type(ignore) ~= "table" then
+        ignore = {};
+        self.db.profile.ignore = ignore;
+    end
+    return ignore;
 end
 
 --- Set the state of a spell in the spells option table
 function BadPet:SetSpellState(info, value)
-  local id;
+    local id, name;
 
-  if info[#info] == "add" then
-    id = tonumber(value);
-    if tostring(id) == value then
-      value = id;
-    end
-    local name = GetSpellInfo(value);
-    if name then
-      if not self.db.profile.spells then
-        self.db.profile.spells = {};
-      end
-      self.db.profile.spells[id] = name;
-    end
-  else
-    id = tonumber(info[#info]);
-    local name = GetSpellInfo(id);
-    if not name then
-      return;
-    elseif self.addonSpells[name] then
-      if not self.db.profile.ignore then
-        self.db.profile.ignore = {};
-      end
-      self.db.profile.ignore[id] = value;
-    elseif self.db.profile.spells and self.db.profile.spells[id] then
-      self.db.profile.spells = table.remove(self.db.profile.spells, id);
-    end
-  end
+    id = tonumber(value) or tonumber(info[#info]);
+    name = id and GetSpellInfo(id);
 
-  self:RefreshSpells();
+    if info[#info] == "add" then
+        local extra = extra(self);
+        if id and name then
+            extra[id] = name;
+            self:Debugf("Enabled %s tracking (extra)", name);
+        end
+    elseif not self.addonSpells[id] then
+        local extra = extra(self);
+        if id and name then
+            if value then
+                extra[id] = name;
+                self:Debugf("Enabled %s tracking (extra)", name);
+            else
+                extra[id] = nil;
+                self:Debugf("Disabled %s tracking (extra)", name);
+            end
+        end
+    else
+        local ignore = ignore(self);
+        if value then
+            ignore[id] = name;
+            self:Debugf("Disabled %s tracking (default)", name);
+        else
+            ignore[id] = nil;
+            self:Debugf("Enabled %s tracking (default)", name);
+        end
+    end
+
+    self:RefreshSpells();
 end
 
 --------------------------------------------------------------------------------
@@ -427,86 +421,95 @@ end
 -- Called by Ace3 when the addon loads and saved variables are available.
 function BadPet:OnInitialize()
 
-  -- Get stored variables.
-  self.db = LibStub("AceDB-3.0"):New("BadPetDB", defaults, true);
+    -- Get stored variables.
+    self.db = LibStub("AceDB-3.0"):New("BadPetDB", defaults, true);
 
-  -- Migrate users who are upgrading from old addon versions.
-  self:MigrateDepricatedSettings();
+    -- Register handlers for responding to profile changes.
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshProfile");
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshProfile");
+    self.db.RegisterCallback(self, "OnProfileReset", "RefreshProfile");
 
-  -- Register handlers for responding to profile changes.
-  self.db.RegisterCallback(self, "OnProfileChanged", "RefreshProfile");
-  self.db.RegisterCallback(self, "OnProfileCopied", "RefreshProfile");
-  self.db.RegisterCallback(self, "OnProfileReset", "RefreshProfile");
+    -- Get profile configuration page for the stored variables.
+    self.options.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db);
+    self.options.args.profiles.order = 100;
 
-  -- Get profile configuration page for the stored variables.
-  self.options.args.profiles
-    = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db);
-  self.options.args.profiles.order = 100;
+    -- Register configuration page and slash commands.
+    local conf = LibStub("AceConfig-3.0");
+    conf:RegisterOptionsTable("BadPet", self.options);
+    conf:RegisterOptionsTable("BadPet: Cmd", self.options.args.cmd, { 'badpet', 'bp' });
+    conf:RegisterOptionsTable("BadPet: General", self.options.args.general);
+    conf:RegisterOptionsTable("BadPet: Profiles", self.options.args.profiles);
 
-  -- Register configuration page and slash commands.
-  local conf = LibStub("AceConfig-3.0");
-  conf:RegisterOptionsTable("BadPet", self.options);
-  conf:RegisterOptionsTable("BadPet: Cmd",
-      self.options.args.cmd, {'badpet','bp'});
-  conf:RegisterOptionsTable("BadPet: General", self.options.args.general);
-  conf:RegisterOptionsTable("BadPet: Profiles", self.options.args.profiles);
+    local dialog = LibStub("AceConfigDialog-3.0");
+    self.config = dialog:AddToBlizOptions("BadPet: General", L["BadPet"]);
+    dialog:AddToBlizOptions("BadPet: Profiles", "Profiles", L["BadPet"]);
 
-  local dialog = LibStub("AceConfigDialog-3.0");
-  dialog:AddToBlizOptions("BadPet", "BadPet");
-  self.config = dialog:AddToBlizOptions("BadPet: General", "General", "BadPet");
-  dialog:AddToBlizOptions("BadPet: Profiles", "Profiles", "BadPet");
-
-  self:RegisterComm(ADDON_PREFIX);
+    self:RegisterComm(ADDON_PREFIX);
 end
 
 --- Called by framework when addon is enabled.
 function BadPet:OnEnable()
-  self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZoneIn");
-  self:Refresh();
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZoneIn");
+    self:Refresh();
 end
 
 --- Called by framework when addon is disabled.
 function BadPet:OnDisable()
-  self:UnregisterEvent("PLAYER_ENTERING_WORLD");
-  self:Refresh();
+    self:UnregisterEvent("PLAYER_ENTERING_WORLD");
+    self:Refresh();
 end
 
 --- Called when profile changes. Calls Refresh on this addon and children.
 function BadPet:RefreshProfile()
-  self:Refresh();
-  if self.Fixer then
-    self.Fixer:Refresh();
-  end
+    self:Refresh();
+    if self.Fixer then
+        self.Fixer:Refresh();
+    end
+end
+
+function BadPet:Clear()
+    local history, queue;
+    history = self.history;
+
+    -- clear history
+    for pet in pairs(history) do
+        history[pet] = nil;
+    end
+    self.history.reset = time();
+
+    -- clear event queue
+    queue = self.queue;
+    for pet in pairs(queue) do
+        queue[pet] = nil;
+    end
 end
 
 function BadPet:ZoneIn()
-  self.history = {};
-  self.history.reset = time();
-  self.queue = {};
-  self:Refresh();
+    self:Clear();
+    self:Refresh();
 end
 
 --- Refreshes this addon's settings using profile and world state.
 function BadPet:Refresh()
-  local register = self:GetInInstance();
+    local register = self:GetInInstance();
 
-  if self.db.profile.debug then
-    register = true;
-  end
+    if self.db.profile.debug then
+        register = true;
+    end
 
-  if not self.db.profile.enable then
-    register = false;
-  end
+    if not self.db.profile.enable then
+        register = false;
+    end
 
-  if register then
-    self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
-    self:RegisterEvent("PLAYER_REGEN_ENABLED");
-  else
-    self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
-    self:UnregisterEvent("PLAYER_REGEN_ENABLED");
-  end
+    if register then
+        self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+        self:RegisterEvent("PLAYER_REGEN_ENABLED");
+    else
+        self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED");
+    end
 
-  self:RefreshSpells();
+    self:RefreshSpells();
 end
 
 --------------------------------------------------------------------------------
@@ -518,346 +521,371 @@ end
 -- player's raid or party, and the spell is on our list of 'bad' spells,
 -- then this event will trigger an addon event to report the pet.
 function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
-  local ttype, _, sGUID, sName, sFlags, _, dGUID, dName, dFlags, _, spellid, spellname
-    = select(3, ...);
-
-  if
-    (ttype == "SPELL_CAST_SUCCESS")
-  and
-    (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sFlags) == COMBATLOG_OBJECT_TYPE_PET)
-  and
-    (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, sFlags)
-      <= COMBATLOG_OBJECT_AFFILIATION_RAID)
-  and
-    self.spells[spellname] and self.spells[spellname] == spellid
-  then
-    local report = {
-      pet = sGUID,
-      petname = sName,
-      target = dGUID,
-      targetname = dName,
-      spell = spellid,
-      spellname = spellname,
-      time = time(),
-    };
-    self:Growl(report);
-  elseif
-    (ttype == "SWING_DAMAGE" or ttype == "SWING_MISS")
-  and
-    (bit.band(COMBATLOG_OBJECT_TYPE_MASK, dFlags) == COMBATLOG_OBJECT_TYPE_PET)
-  and
-    (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, dFlags)
-      <= COMBATLOG_OBJECT_AFFILIATION_RAID)
-  and
-    self.db.profile.melee
-  then
-    local hit = "hit";
-    if (ttype == "SWING_MISS") then
-      hit = "miss"
+    local _, time, event, _, sid, sname, sflags, _, tid, tname, tflags, _, spell, spellName = ...;
+    if (event == "SPELL_CAST_SUCCESS")
+            and self.spells[spell]
+            and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sflags) == COMBATLOG_OBJECT_TYPE_PET)
+            and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, sflags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
+    then
+        local report = {
+            event = event,
+            time = time,
+            pet = { id = sid, name = sname },
+            target = { id = tid, name = tname },
+            spell = { id = spell, name = spellName },
+        };
+        self:Growl(report);
+    elseif (event == "SWING_DAMAGE" or event == "SWING_MISS")
+            and self.db.profile.melee
+            and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, tflags) == COMBATLOG_OBJECT_TYPE_PET)
+            and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, tflags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
+    then
+        local report = {
+            event = event,
+            time = time,
+            pet = { id = tid, name = tname },
+            target = { id = sid, name = sname },
+            spell = { id = 1, name = "melee" },
+        };
+        self:Growl(report);
     end
-    local report = {
-      pet = dGUID,
-      petname = dName,
-      target = sGUID,
-      targetname = sName,
-      spell = 1,
-      spellname = "melee",
-      hittype = hit,
-      time = time(),
-    };
-    self:Growl(report);
-  end
 end
 
 --- Player left combat.
 -- Leaving combat resets the 'quiet' filter.
 function BadPet:PLAYER_REGEN_ENABLED(...)
-   self.history.reset = time();
-   if self.db.profile.debug then
-      self:Print("Left combat, warnings reset");
-   end
+    self.history.reset = time();
+    self:Debug("Leaving combat, warnings reset")
+end
+
+--- Generate a growl event to test the addon in response to a user request.
+function BadPet:Test()
+    self:Clear();
+    local src, dst = UnitGUID("pet"), UnitGUID("player");
+    local sName, dName = UnitName("pet"), UnitName("player");
+    local record = {
+        time = time(),
+        event = "SPELL_CAST_SUCCESS",
+        pet = {
+            id = UnitGUID("pet") or 0,
+            name = UnitName("pet") or "FakePet",
+        },
+        target = {
+            id = UnitGUID("player"),
+            name = UnitName("player"),
+        },
+        owner = {
+            id = UnitGUID("target") or 0,
+            name = UnitName("target") or "Hunter2",
+        },
+        spell = {
+            id = 2649,
+            name = "Growl",
+        },
+    };
+    self:Growl(record);
 end
 
 --- Respond to a pet growl event in combat log.
 -- Update history for that pet/owner.
 -- Check settings and history to work out whether to send a message or not.
 function BadPet:Growl(report)
-  local player, targetText, spellText;
+    local history, queue, reset;
+    local player, targetText, spellText;
 
-  -- record the event
-  if not self.history[report.pet] then
-    self.history[report.pet] = {}
-  end
+    history = self.history[report.pet.id][report.spell.id];
+    reset = self.history.reset;
 
-  local last = self.history[report.pet][report.spell]
-  if not last then
-    last = { time = 0, count = 0 };
-    self.history[report.pet][report.spell] = last;
-  end
+    -- decide whether we will report this event
+    if history.time < self.history.reset -- no reports since combat started
+            or self.db.profile.state == "noisy" then -- we report everything
+        history.time = report.time;
+        history.count = history.count + 1;
 
-  local last = self.history[report.pet][report.spell];
-
-  -- decide whether we will report this event
-  if self.db.profile.state == "noisy" -- we report everything
-  or last.time < self.history.reset then  -- no reports since combat started
-
-    last.time = report.time;
-    last.count = last.count + 1;
-
-    if last.count > self.db.profile.grace then
-      last.count = 0;
-      self:SendReport(report);
+        if history.count > self.db.profile.grace then
+            history.count = 0;
+            self:SendReport(report);
+        end
     end
-  end
 end
 
 --- Process sending a report.
 function BadPet:SendReport(report)
+    local previous;
 
-  -- if we're set to noisy don't check with others, send the report now
-  if self.db.profile.state == NOISY then
-    self:SendMessage(report);
-    report.sent = UnitName("player");
-    self:BroadcastReport(report);
-    return;
-  end
-
-  if not self.queue[report.pet] then
-    self.queue[report.pet] = {}
-  end
-
-  -- check for a report already on the queue, or queue this one
-  if self.queue[report.pet][report.spell]
-  and self.queue[report.pet][report.spell].time + REPORT_DELAY > report.time
-  then
-    -- someone else has already reported this recently
-    return
-  else
-    -- queue this report and broadcast it to others
-    report.priority = math.random(MAX_PRIORITY);
-
-    if UnitGUID("pet") == report.pet then
-      report.priority = IS_ME_PRIORITY;
+    -- if we're set to noisy don't check with others, send the report now
+    if self.db.profile.state == NOISY then
+        self:SendMessage(report);
+        report.sent = UnitName("player");
+        self:BroadcastReport(report);
+        return;
     end
 
-    self.queue[report.pet][report.spell] = report;
-    self:BroadcastReport(report);
-    self:ScheduleTimer("CheckQueue", REPORT_DELAY, report);
-  end
+    previous = self.queue[report.pet.id][report.spell.id];
+
+    -- check for a report already on the queue, or queue this one
+    if previous and previous.time + REPORT_DELAY > report.time then
+        -- someone else has already reported this recently
+        return
+    else
+        -- queue this report and broadcast it to others
+        report.priority = math.random(MAX_PRIORITY);
+
+        if UnitGUID("pet") == report.pet then
+            report.priority = IS_ME_PRIORITY;
+        end
+
+        self.queue[report.pet.id][report.spell.id] = report;
+        self:BroadcastReport(report);
+        self:ScheduleTimer("CheckQueue", REPORT_DELAY, report);
+    end
 end
 
 --- Broadcast this report to other players in our party.
 function BadPet:BroadcastReport(report)
-  local distribution;
-  if UnitInRaid("player") then -- we're in a raid
-    distribution = "RAID";
-  elseif GetNumGroupMembers() > 0 then -- we're in a party
-    distribution = "PARTY";
-  else -- not in a group, swallow the message
-    return
-  end
+    local distribution;
+    if UnitInRaid("player") then -- we're in a raid
+        distribution = "RAID";
+    elseif GetNumGroupMembers() > 0 then -- we're in a party
+        distribution = "PARTY";
+    else -- not in a group, swallow the message
+        return
+    end
 
-  local msg = self:Serialize(report)
-  self:SendCommMessage(ADDON_PREFIX, msg, distribution);
+    local msg = self:Serialize(report)
+    self:SendCommMessage(ADDON_PREFIX, msg, distribution);
 end
 
 --- Process a report received from another player.
 function BadPet:OnCommReceived(prefix, msg, distribution, sender)
-  if not (prefix == ADDON_PREFIX) then
-    return;
-  end
+    local success, received, ours, history;
 
-  local debug = self.db.profile.debug;
-
-  local success,report = self:Deserialize(msg);
-  if not success then
-    if debug then
-      self:Print("error deserializing message: "..msg);
-    end
-    return;
-  end
-
-  if not self.queue[report.pet] then
-    self.queue[report.pet] = {};
-  end
-
-  if self.queue[report.pet][report.spell] then
-    local ours = self.queue[report.pet][report.spell];
-    if report.sent then -- already been sent
-      ours.sent = sender;
-      if debug then self:Print("supressed, they already sent it"); end
-    elseif report.priority > ours.priority then -- theirs wins, they'll send it
-      ours.sent = sender;
-      if debug then
-        self:Print("supressed, they've got priority ("
-          ..report.priority..":"..ours.priority..")");
-      end
-    end -- otherwise ignore, we'll still send ours
-  else -- they saw something we didn't, or don't care about
-    report.sent = sender;
-    self.queue[report.pet][report.spell] = report;
-    if debug then
-      self:Print("receieved a warning that we didn't see");
+    if not (prefix == ADDON_PREFIX) then
+        return;
     end
 
-    if not self.history[report.pet] then
-      self.history[report.pet] = {};
+    success, received = self:Deserialize(msg);
+    if not success then
+        self:Debug("error deserializing message: " .. msg);
+        return;
     end
 
-    if not self.history[report.pet][report.spell] then
-      self.history[report.pet][report.spell] = {};
-    end
+    history = self.history[received.pet.id][received.spell.id];
+    ours = self.queue[received.pet.id][received.spell.id];
 
-    -- message has been set, update history accordingly.
-    self.history[report.pet][report.spell].time = time();
-    self.history[report.pet][report.spell].count = 0;
-  end
+    if ours then
+        if received.sent then -- already been sent
+            ours.sent = sender;
+            self:Debugf("supressed report, %s has already sent it", sender);
+        elseif received.priority > ours.priority then -- theirs wins, they'll send it
+            ours.sent = sender;
+            self:Debugf("supressed report, %s has priority (%d vs %d)",
+                sender, received.priority, ours.priority);
+        end -- otherwise ignore, we'll still send ours
+    else -- they saw something we didn't see or don't care about
+        received.sent = sender;
+        self.queue[received.pet.id][received.spell.id] = received;
+        self:Debugf("receieved a previously unseen warning from %s", sender);
+
+        -- message has been set, update history accordingly.
+        history.time = time();
+        history.count = 0;
+    end
 end
 
---- Iterate through the queue and send reports if the delay has elapsed.
--- Removes reports which have already been sent silently.
+--- Dispatch a previously queued report.
 function BadPet:CheckQueue(report)
-  local time = time();
+    local time = time();
 
-  self:SendMessage(report);
+    self:SendMessage(report);
 
-  if self.queue[report.pet] then
-  	self.queue[report.pet][report.spell] = nil;
-  end
+    if self.queue[report.pet] then
+        self.queue[report.pet][report.spell] = nil;
+    end
 end
 
 --- Send a warning message to the appropriate frame.
 function BadPet:SendMessage(report)
-  local targetText, spellText;
-  local playername = self:GetOwnerName(report.pet);
-  local bp = ADDON_PREFIX..": ";
+    local frame, me, owner;
 
-  -- construct pet message
-  targetText = playername.."'s pet, "..(report.petname or "unknown")..",";
+    self:AddOwner(report);
 
-  -- construct spell message
-  if report.spell == 1 then
-    spellText = " was " .. report.hittype .. " by "
-     .. report.targetname;
-  elseif report.targetname then
-    spellText = " used " .. GetSpellLink(report.spell)
-      .. " on " .. report.targetname;
-  else
-    spellText = " used " .. GetSpellLink(report.spell).." (aoe)"
-  end
+    frame = self.db.profile.frame;
+    me = UnitGUID("pet") == report.pet.id;
+    owner = report.owner;
 
-  -- send message
-  if report.sent then
-    spellText = spellText .. " (reported by " .. report.sent .. ")";
-  elseif UnitGUID("pet") == report.pet then
-    targetText = "Your pet, "..report.petname..",";
-  elseif self.db.profile.frame == FRAME_PARTY then
-    if GetNumGroupMembers(LE_PARTY_CATEGORY_INSTANCE) > 0 then
-      SendChatMessage(bp..targetText..spellText, "INSTANCE_CHAT");
-    elseif UnitInRaid("player") then
-      SendChatMessage(bp..targetText..spellText, "RAID");
-    elseif GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > 0 then
-      SendChatMessage(bp..targetText..spellText, "PARTY");
+    if report.sent or me or not owner then
+        frame = FRAME_PRIVATE;
     end
-    return;
-  elseif self.db.profile.frame == FRAME_WHISPER then
-    targetText = bp.."Your pet, "..report.petname..",";
-    SendChatMessage(targetText..spellText, "WHISPER",
-        GetDefaultLanguage("player"), playername);
-    return;
-  end
 
-  -- fall through case
-  self:Print(targetText..spellText);
+    local message = self:DescribeEvent(report, frame);
+
+    if frame == FRAME_PRIVATE then
+        self:Print(message);
+        if report.sent then
+            self:Debugf("(reported by %s)", report.sent);
+        end
+    elseif frame == FRAME_WHISPER then
+        SendChatMessage(message, "WHISPER", GetDefaultLanguage("player"), owner.name);
+    elseif frame == FRAME_PARTY then
+        message = "BadPet: " .. message;
+        if GetNumGroupMembers(LE_PARTY_CATEGORY_INSTANCE) > 0 then
+            SendChatMessage(message, "INSTANCE_CHAT");
+        elseif UnitInRaid("player") then
+            SendChatMessage(message, "RAID");
+        elseif GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > 0 then
+            SendChatMessage(message, "PARTY");
+        end
+    end
 end
 
 --------------------------------------------------------------------------------
 -- Utility Methods
 --------------------------------------------------------------------------------
 
---- Returns true if the player is in a dungeon or raid instance.
-function BadPet:GetInInstance()
-  local inInstance, instanceType = IsInInstance();
-  return inInstance and (instanceType == "party" or instanceType == "raid");
+--- Find the owner of a particular pet and add their details to the report.
+-- @param pet: a pet descriptor
+function BadPet:AddOwner(report)
+    local subject = report.pet and report.pet.id;
+    local unit, owner;
+    if subject == UnitGUID("pet") then
+        unit = "player"
+    elseif UnitPlayerOrPetInParty(subject) then
+        for i = 1, 4 do
+            local id = UnitGUID("partypet" .. i)
+            if (id and id == subject) then
+                unit = "party" .. i;
+                break;
+            end
+        end
+    elseif UnitPlayerOrPetInRaid(subject) then
+        for i = 1, GetNumGroupMembers(), 1 do
+            local id = UnitGUID("raidpet" .. i)
+            if (id and id == subject) then
+                unit = "raid" .. i;
+                break;
+            end
+        end
+    end
+
+    if unit then
+        report.owner = { id = UnitGUID(unit), name = GetUnitName(unit, true) };
+    end
 end
 
---- Work out the name of the owner of a particular pet.
--- @param petGUID the pet's
-function BadPet:GetOwnerName(petGUID)
-  local ownerName,ownerRealm
-  for i = 1, GetNumGroupMembers(), 1 do
-    pet = UnitGUID("raidpet"..i)
-    if (pet and pet == petGUID) then
-      ownerName,ownerRealm = UnitName("raid"..i)
-      if ownerRealm then
-        ownerName = ownerName .. "-" .. ownerRealm
-      end
-      return ownerName
+--- Returns true if the player is in a dungeon or raid instance.
+function BadPet:GetInInstance()
+    local inInstance, instanceType = IsInInstance();
+    return inInstance and (instanceType == "party" or instanceType == "raid");
+end
+
+--- Format and print a message (using string.format)
+function BadPet:Printf(...)
+    self:Print(string.format(...))
+end
+
+--- Print a debugging message (only when debug is turned on)
+function BadPet:Debug(message)
+    if self.db.profile.debug then
+        self:Print(message);
     end
-  end
-  for i = 1,4 do
-    pet = UnitGUID("partypet"..i)
-    if (pet and pet == petGUID) then
-      ownerName,ownerRealm = UnitName("party"..i)
-      if ownerRealm then
-        ownerName = ownerName .. "-" .. ownerRealm
-      end
-      return ownerName
+end
+
+--- Format and print a debugging message (only when debug is turned on)
+function BadPet:Debugf(...)
+    if self.db.profile.debug then
+        self:Debug(string.format(...));
     end
-  end
-  pet = UnitGUID("pet");
-  if (pet and pet == petGUID) then
-    return UnitName("player")
-  else
-    return "Unknown"
-  end
+end
+
+--------------------------------------------------------------------------------
+-- Messaging Methods
+--------------------------------------------------------------------------------
+
+--- Describe an action
+-- @param report spell report to describe
+-- @param frame destination for the report (e.g. private, whisper, party)
+-- @return string describing the event
+function BadPet:DescribeEvent(report, frame)
+    local subject, target, spell, message;
+
+    subject = self:DescribePet(report, frame);
+    target = report.target.name;
+    spell = GetSpellLink(report.spell.id) or report.spell.name;
+
+    if event == "SWING_DAMAGE" then
+        message = (L["%s was hit by %s"]):format(subject, target);
+    elseif event == "SWING_MISS" then
+        message = (L["%s was missed by %s"]):format(subject, target);
+    elseif target then
+        message = (L["%s used %s on %s"]):format(subject, spell, target);
+    else
+        message = (L["%s used %s"]):format(subject, spell, target);
+    end
+
+    return message;
+end
+
+--- Describe a pet
+-- @param report spell report containing the pet to describe
+-- @param frame destination for the report (e.g. private, whisper, party)
+-- @return string describing the pet
+function BadPet:DescribePet(report, frame)
+    local owner, pet, me, message;
+
+    if not report.owner then
+        self:AddOwner(report);
+    end
+
+    owner = report.owner and report.owner.name;
+    pet = report.pet and report.pet.name;
+    me = report.owner and report.owner.id == UnitGUID("player");
+
+    if me then
+        if pet then
+            message = (L["My pet, %s,"]):format(pet);
+        else
+            message = L["My pet"];
+        end
+    elseif owner and frame == FRAME_WHISPER then
+        if pet then
+            message = (L["Your pet, %s,"]):format(pet);
+        else
+            message = L["Your pet"];
+        end
+    elseif owner then
+        if pet and owner then
+            message = (L["%s's pet, %s,"]):format(owner, pet);
+        elseif haveOwner then
+            message = (L["%s's pet"]):format(owner);
+        else
+            message = L["An unknown pet"];
+        end
+    else
+        if pet then
+            message = (L["An unknown pet, %s,"]):format(pet);
+        else
+            message = L["An unknown pet"];
+        end
+    end
+
+    return message;
 end
 
 --- Print the current state of the addon to the default chat frame.
 function BadPet:Status()
-  local message;
-  if not self.db.profile.enable then
-    message = "disabled";
-  else
-    message = self.db.profile.state .. ", ";
-    message = message .. "reporting to " .. self.db.profile.frame;
+    local message;
+    local state = self.db.profile.state;
+    local frame = self.db.profile.frame;
+    local _, itype = IsInInstance();
 
-    if self.db.profile.debug then
-      local _, itype = IsInInstance();
-      message = message .. " in debug mode (instance: "..itype..")";
-    end
-  end
-
-  self:Print(message);
-end
-
---------------------------------------------------------------------------------
--- Methods for handling compatability with old versions
---------------------------------------------------------------------------------
-
---- Checks for depricated settings and stores then in the new db format.
-function BadPet:MigrateDepricatedSettings()
-  if BadPet_State then
-    if BadPet_State == "stopped" then
-      self.db.profile.enabled = false;
+    if not self.db.profile.enable then
+        message = L["disabled"];
+    elseif not self.db.profile.debug then
+        message = L["%s, reporting to %q"];
     else
-      self.db.profile.state = BadPet_State
+        message = L["%s, reporting to %q in debug mode (instance: %s)"];
     end
-    BadPet_State = nil;
-  end
-  if BadPet_Frame then
-    self.db.profile.frame = BadPet_Frame;
-    BadPet_Frame = nil;
-  end
-  if BadPet_Debug then
-    self.db.profile.debug = BadPet_Debug;
-    BadPet_Debug = nil;
-  end
-  if self.db.profile.fixer == nil then
-    self.db.profile.fixer = true;
-  end
-  if self.db.profile.grace == nil then
-    self.db.profile.grace = 0;
-  end
-end
 
+    self:Printf(message, state, frame, itype);
+end
