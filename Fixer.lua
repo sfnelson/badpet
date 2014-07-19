@@ -190,8 +190,6 @@ end
 
 --- Called by framework when user enables module, and after load.
 function Fixer:OnEnable()
-  self.parent.db.profile.fixer = true;
-
   self:RegisterEvent("PLAYER_ENTERING_WORLD", "Refresh");
   self:RegisterEvent("PET_BAR_UPDATE", "Refresh");
   self:RegisterEvent("UNIT_PET", "Refresh");
@@ -205,12 +203,10 @@ end
 
 --- Called by framework when user disables module.
 function Fixer:OnDisable()
-  self.parent.db.profile.fixer = false;
-
   self:UnregisterEvent("PLAYER_ENTERING_WORLD");
   self:UnregisterEvent("PET_BAR_UPDATE");
   self:UnregisterEvent("UNIT_PET");
-  self:RegisterEvent("PLAYER_REGEN_ENABLED");
+  self:UnregisterEvent("PLAYER_REGEN_ENABLED");
   self:Refresh();
 
   self.ldbdata.OnEnter = function (frame) end

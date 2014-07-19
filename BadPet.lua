@@ -26,7 +26,7 @@ local FRAME_PARTY = "party";
 local IS_ME_PRIORITY = 10000;
 local MAX_PRIORITY = IS_ME_PRIORITY - 1;
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Configuration
 --------------------------------------------------------------------------------
 
@@ -34,9 +34,9 @@ local MAX_PRIORITY = IS_ME_PRIORITY - 1;
 BadPet.addonSpells = {
    Growl        = 2649,     -- growl (generic hunter pet - increases threat)
    Taunt        = 53477,    -- taunt (hunter pet talent - true taunt)
-   Thunderstomp = 63900,    -- thunderstomp (hunter pet talent - damage+threat)
    Suffering    = 17735,    -- suffering (voidwalker - true taunt)
    TwinHowl     = 58857,    -- twin howl (spirit wolves - true taunt)
+-- Thunderstomp = 63900,    -- thunderstomp (hunter pet talent - damage+threat)
 };
 
 BadPet.spells = {};
@@ -461,16 +461,12 @@ end
 
 --- Called by framework when addon is enabled.
 function BadPet:OnEnable()
-  self.db.profile.enable = true;
-
   self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZoneIn");
   self:Refresh();
 end
 
 --- Called by framework when addon is disabled.
 function BadPet:OnDisable()
-  self.db.profile.enable = false;
-
   self:UnregisterEvent("PLAYER_ENTERING_WORLD");
   self:Refresh();
 end
