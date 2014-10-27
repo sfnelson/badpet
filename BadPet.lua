@@ -19,15 +19,11 @@ local BadPet = addon;
 --------------------------------------------------------------------------------
 
 local ADDON_PREFIX = "BadPet";
-local REPORT_DELAY = 2;
 local STATE_QUIET = "quiet";
 local STATE_NOISY = "noisy";
 local FRAME_PRIVATE = "private";
 local FRAME_WHISPER = "whisper";
 local FRAME_PARTY = "party";
-local IS_ME_PRIORITY = 10000;
-local MAX_PRIORITY = IS_ME_PRIORITY - 1;
-
 local L = BadPetI18N[GetLocale()];
 
 --------------------------------------------------------------------------------
@@ -50,7 +46,6 @@ local defaults = {
         state = STATE_QUIET,
         frame = FRAME_WHISPER,
         debug = false,
-        melee = false,
         fixer = true,
         grace = 0,
     },
@@ -119,13 +114,6 @@ BadPet.options = {
                     set = "SetSpellState",
                     get = "GetSpellState",
                     order = 60,
-                },
-                melee = {
-                    name = "Show melee hits on pets",
-                    desc = "Send a message when a pet receives a melee attack.",
-                    type = "toggle",
-                    order = 70,
-                    width = "full",
                 },
                 debug = {
                     name = "Debug",
@@ -208,10 +196,6 @@ BadPet.options = {
                         InterfaceOptionsFrame_OpenToCategory(BadPet.config);
                     end,
                     hidden = true,
-                },
-                melee = {
-                    name = "Show melee hits on pets",
-                    type = "toggle",
                 },
                 debug = {
                     name = "Debug",
@@ -535,19 +519,6 @@ function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
             spell = { id = spell, name = spellName },
         };
         self:Growl(report);
-    elseif (event == "SWING_DAMAGE" or event == "SWING_MISS")
-            and self.db.profile.melee
-            and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, tflags) == COMBATLOG_OBJECT_TYPE_PET)
-            and (bit.band(COMBATLOG_OBJECT_AFFILIATION_MASK, tflags) <= COMBATLOG_OBJECT_AFFILIATION_RAID)
-    then
-        local report = {
-            event = event,
-            time = time,
-            pet = { id = tid, name = tname },
-            target = { id = sid, name = sname },
-            spell = { id = 1, name = "melee" },
-        };
-        self:Growl(report);
     end
 end
 
@@ -560,23 +531,25 @@ end
 
 --- Generate a growl event to test the addon in response to a user request.
 function BadPet:Test()
+    local function SomePet()
+        local id = UnitGUID("target")
+        if id and string.match(id, "^Pet-") then
+            return { id = id, name = UnitName("target") }
+        elseif UnitExists("pet") then
+            return { id = UnitGUID("pet"), name = UnitName("pet") }
+        else
+            return { id = 0, name = "FakePet" }
+        end
+    end
+
     self:Clear();
-    local src, dst = UnitGUID("pet"), UnitGUID("player");
-    local sName, dName = UnitName("pet"), UnitName("player");
     local record = {
         time = time(),
         event = "SPELL_CAST_SUCCESS",
-        pet = {
-            id = UnitGUID("pet") or 0,
-            name = UnitName("pet") or "FakePet",
-        },
+        pet = SomePet(),
         target = {
             id = UnitGUID("player"),
             name = UnitName("player"),
-        },
-        owner = {
-            id = UnitGUID("target") or 0,
-            name = UnitName("target") or "Hunter2",
         },
         spell = {
             id = 2649,
@@ -586,192 +559,9 @@ function BadPet:Test()
     self:Growl(record);
 end
 
---- Respond to a pet growl event in combat log.
--- Update history for that pet/owner.
--- Check settings and history to work out whether to send a message or not.
-function BadPet:Growl(report)
-    local history, queue, reset;
-    local player, targetText, spellText;
-
-    history = self.history[report.pet.id][report.spell.id];
-    reset = self.history.reset;
-
-    -- decide whether we will report this event
-    if history.time < self.history.reset -- no reports since combat started
-            or self.db.profile.state == "noisy" then -- we report everything
-        history.time = report.time;
-        history.count = history.count + 1;
-
-        if history.count > self.db.profile.grace then
-            history.count = 0;
-            self:SendReport(report);
-        end
-    end
-end
-
---- Process sending a report.
-function BadPet:SendReport(report)
-    local previous;
-
-    -- if we're set to noisy don't check with others, send the report now
-    if self.db.profile.state == NOISY then
-        self:SendMessage(report);
-        report.sent = UnitName("player");
-        self:BroadcastReport(report);
-        return;
-    end
-
-    previous = self.queue[report.pet.id][report.spell.id];
-
-    -- check for a report already on the queue, or queue this one
-    if previous and previous.time + REPORT_DELAY > report.time then
-        -- someone else has already reported this recently
-        return
-    else
-        -- queue this report and broadcast it to others
-        report.priority = math.random(MAX_PRIORITY);
-
-        if UnitGUID("pet") == report.pet then
-            report.priority = IS_ME_PRIORITY;
-        end
-
-        self.queue[report.pet.id][report.spell.id] = report;
-        self:BroadcastReport(report);
-        self:ScheduleTimer("CheckQueue", REPORT_DELAY, report);
-    end
-end
-
---- Broadcast this report to other players in our party.
-function BadPet:BroadcastReport(report)
-    local distribution;
-    if UnitInRaid("player") then -- we're in a raid
-        distribution = "RAID";
-    elseif GetNumGroupMembers() > 0 then -- we're in a party
-        distribution = "PARTY";
-    else -- not in a group, swallow the message
-        return
-    end
-
-    local msg = self:Serialize(report)
-    self:SendCommMessage(ADDON_PREFIX, msg, distribution);
-end
-
---- Process a report received from another player.
-function BadPet:OnCommReceived(prefix, msg, distribution, sender)
-    local success, received, ours, history;
-
-    if not (prefix == ADDON_PREFIX) then
-        return;
-    end
-
-    success, received = self:Deserialize(msg);
-    if not success then
-        self:Debug("error deserializing message: " .. msg);
-        return;
-    end
-
-    history = self.history[received.pet.id][received.spell.id];
-    ours = self.queue[received.pet.id][received.spell.id];
-
-    if ours then
-        if received.sent then -- already been sent
-            ours.sent = sender;
-            self:Debugf("supressed report, %s has already sent it", sender);
-        elseif received.priority > ours.priority then -- theirs wins, they'll send it
-            ours.sent = sender;
-            self:Debugf("supressed report, %s has priority (%d vs %d)",
-                sender, received.priority, ours.priority);
-        end -- otherwise ignore, we'll still send ours
-    else -- they saw something we didn't see or don't care about
-        received.sent = sender;
-        self.queue[received.pet.id][received.spell.id] = received;
-        self:Debugf("receieved a previously unseen warning from %s", sender);
-
-        -- message has been set, update history accordingly.
-        history.time = time();
-        history.count = 0;
-    end
-end
-
---- Dispatch a previously queued report.
-function BadPet:CheckQueue(report)
-    local time = time();
-
-    self:SendMessage(report);
-
-    if self.queue[report.pet] then
-        self.queue[report.pet][report.spell] = nil;
-    end
-end
-
---- Send a warning message to the appropriate frame.
-function BadPet:SendMessage(report)
-    local frame, me, owner;
-
-    self:AddOwner(report);
-
-    frame = self.db.profile.frame;
-    me = UnitGUID("pet") == report.pet.id;
-    owner = report.owner;
-
-    if report.sent or me or not owner then
-        frame = FRAME_PRIVATE;
-    end
-
-    local message = self:DescribeEvent(report, frame);
-
-    if frame == FRAME_PRIVATE then
-        self:Print(message);
-        if report.sent then
-            self:Debugf("(reported by %s)", report.sent);
-        end
-    elseif frame == FRAME_WHISPER then
-        SendChatMessage(message, "WHISPER", GetDefaultLanguage("player"), owner.name);
-    elseif frame == FRAME_PARTY then
-        message = "BadPet: " .. message;
-        if GetNumGroupMembers(LE_PARTY_CATEGORY_INSTANCE) > 0 then
-            SendChatMessage(message, "INSTANCE_CHAT");
-        elseif UnitInRaid("player") then
-            SendChatMessage(message, "RAID");
-        elseif GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > 0 then
-            SendChatMessage(message, "PARTY");
-        end
-    end
-end
-
 --------------------------------------------------------------------------------
--- Utility Methods
+-- Messaging Methods
 --------------------------------------------------------------------------------
-
---- Find the owner of a particular pet and add their details to the report.
--- @param pet: a pet descriptor
-function BadPet:AddOwner(report)
-    local subject = report.pet and report.pet.id;
-    local unit, owner;
-    if subject == UnitGUID("pet") then
-        unit = "player"
-    elseif UnitPlayerOrPetInParty(subject) then
-        for i = 1, 4 do
-            local id = UnitGUID("partypet" .. i)
-            if (id and id == subject) then
-                unit = "party" .. i;
-                break;
-            end
-        end
-    elseif UnitPlayerOrPetInRaid(subject) then
-        for i = 1, GetNumGroupMembers(), 1 do
-            local id = UnitGUID("raidpet" .. i)
-            if (id and id == subject) then
-                unit = "raid" .. i;
-                break;
-            end
-        end
-    end
-
-    if unit then
-        report.owner = { id = UnitGUID(unit), name = GetUnitName(unit, true) };
-    end
-end
 
 --- Returns true if the player is in a dungeon or raid instance.
 function BadPet:GetInInstance()
@@ -796,80 +586,6 @@ function BadPet:Debugf(...)
     if self.db.profile.debug then
         self:Debug(string.format(...));
     end
-end
-
---------------------------------------------------------------------------------
--- Messaging Methods
---------------------------------------------------------------------------------
-
---- Describe an action
--- @param report spell report to describe
--- @param frame destination for the report (e.g. private, whisper, party)
--- @return string describing the event
-function BadPet:DescribeEvent(report, frame)
-    local subject, target, spell, message;
-
-    subject = self:DescribePet(report, frame);
-    target = report.target.name;
-    spell = GetSpellLink(report.spell.id) or report.spell.name;
-
-    if event == "SWING_DAMAGE" then
-        message = (L["%s was hit by %s"]):format(subject, target);
-    elseif event == "SWING_MISS" then
-        message = (L["%s was missed by %s"]):format(subject, target);
-    elseif target then
-        message = (L["%s used %s on %s"]):format(subject, spell, target);
-    else
-        message = (L["%s used %s"]):format(subject, spell, target);
-    end
-
-    return message;
-end
-
---- Describe a pet
--- @param report spell report containing the pet to describe
--- @param frame destination for the report (e.g. private, whisper, party)
--- @return string describing the pet
-function BadPet:DescribePet(report, frame)
-    local owner, pet, me, message;
-
-    if not report.owner then
-        self:AddOwner(report);
-    end
-
-    owner = report.owner and report.owner.name;
-    pet = report.pet and report.pet.name;
-    me = report.owner and report.owner.id == UnitGUID("player");
-
-    if me then
-        if pet then
-            message = (L["My pet, %s,"]):format(pet);
-        else
-            message = L["My pet"];
-        end
-    elseif owner and frame == FRAME_WHISPER then
-        if pet then
-            message = (L["Your pet, %s,"]):format(pet);
-        else
-            message = L["Your pet"];
-        end
-    elseif owner then
-        if pet and owner then
-            message = (L["%s's pet, %s,"]):format(owner, pet);
-        elseif haveOwner then
-            message = (L["%s's pet"]):format(owner);
-        else
-            message = L["An unknown pet"];
-        end
-    else
-        if pet then
-            message = (L["An unknown pet, %s,"]):format(pet);
-        else
-            message = L["An unknown pet"];
-        end
-    end
-
-    return message;
 end
 
 --- Print the current state of the addon to the default chat frame.
