@@ -32,10 +32,9 @@ local L = BadPetI18N[GetLocale()];
 
 --- Spells which the addon tracks.
 BadPet.addonSpells = {}
-BadPet.addonSpells[2649] = "Growl"; -- growl (generic hunter pet - increases threat)
-BadPet.addonSpells[53477] = "Taunt"; -- taunt (hunter pet talent - true taunt)
+BadPet.addonSpells[2649] = "Growl"; -- growl (generic hunter pet - true taunt)
 BadPet.addonSpells[17735] = "Suffering"; -- suffering (voidwalker - true taunt)
---BadPet.addonSpells[63900] = "Thunderstomp"; -- thunderstomp (hunter pet talent - damage+threat)
+BadPet.addonSpells[171014] = "Seethe"; -- seethe (infernal - true taunt)
 
 BadPet.spells = {};
 
