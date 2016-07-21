@@ -287,7 +287,7 @@ function BadPet:DescribePet(report, frame)
     local owner, pet, me, message;
 
     if not report.owner then
-        self:AddOwner(report);
+        report = AddOwner(report);
     end
 
     owner = report.owner and report.owner.name;
