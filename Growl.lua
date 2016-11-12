@@ -103,6 +103,22 @@ end
 -- Respond to a combat log event by generating a message
 --------------------------------------------------------------------------------
 
+--- Find the appropriate group channel for sharing reports
+local function GetChannel()
+    local channel;
+    if IsInRaid(LE_PARTY_CATEGORY_INSTANCE) then -- we're in an LFR instance
+        channel = "INSTANCE_CHAT";
+    elseif IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then -- we're in an LFG instance
+        channel = "INSTANCE_CHAT";
+    elseif IsInRaid(LE_PARTY_CATEGORY_HOME) then -- we're in a raid
+        channel = "RAID";
+    elseif IsInGroup(LE_PARTY_CATEGORY_HOME) then -- we're in a party
+        channel = "PARTY";
+    else -- not in a group, no appropriate channel
+    end
+    return channel;
+end
+
 --- Respond to a pet growl event in combat log.
 -- Update history for that pet/owner.
 -- Check settings and history to work out whether to send a message or not.
@@ -161,17 +177,12 @@ end
 
 --- Broadcast this report to other players in our party.
 function BadPet:BroadcastReport(report)
-    local distribution;
-    if UnitInRaid("player") then -- we're in a raid
-        distribution = "RAID";
-    elseif GetNumGroupMembers() > 0 then -- we're in a party
-        distribution = "PARTY";
-    else -- not in a group, swallow the message
-        return
-    end
+    local distribution = GetChannel();
 
-    local msg = self:Serialize(report)
-    self:SendCommMessage(ADDON_PREFIX, msg, distribution);
+    if distribution then
+        local msg = self:Serialize(report)
+        self:SendCommMessage(ADDON_PREFIX, msg, distribution);
+    end
 end
 
 --- Process a report received from another player.
@@ -244,13 +255,10 @@ function BadPet:SendMessage(report)
     elseif frame == FRAME_WHISPER then
         SendChatMessage(message, "WHISPER", GetDefaultLanguage("player"), owner.name);
     elseif frame == FRAME_PARTY then
-        message = "BadPet: " .. message;
-        if GetNumGroupMembers(LE_PARTY_CATEGORY_INSTANCE) > 0 then
-            SendChatMessage(message, "INSTANCE_CHAT");
-        elseif UnitInRaid("player") then
-            SendChatMessage(message, "RAID");
-        elseif GetNumGroupMembers(LE_PARTY_CATEGORY_HOME) > 0 then
-            SendChatMessage(message, "PARTY");
+        local channel = GetChannel()
+        if channel then
+            message = "BadPet: " .. message;
+            SendChatMessage(message, channel);
         end
     end
 end
