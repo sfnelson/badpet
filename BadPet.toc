@@ -28,6 +28,7 @@ libs\LibQTip-1.0\LibQTip-1.0.lua
 #@end-no-lib-strip@
 
 localization.lua
+localization.de.lua
 localization.en.lua
 localization.es.lua
 
