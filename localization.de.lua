@@ -30,7 +30,7 @@ L["An unknown pet, %s,"] = "Ein unbekanntes Pet, %s,";
 
 L["%s was hit by %s"] = "%s wurde getroffen von %s";
 L["%s was missed by %s"] = "%s verfehlte %s";
-L["%s used %s on %s"] = "%s benutze %s on %s";
+L["%s used %s on %s"] = "%s benutzte %s auf %s";
 L["%s used %s"] = "%s benutzte %s";
 
 L["disabled"] = "abgeschaltet";
