@@ -503,8 +503,8 @@ end
 -- If the event is a successful spell cast, a pet event generated within
 -- player's raid or party, and the spell is on our list of 'bad' spells,
 -- then this event will trigger an addon event to report the pet.
-function BadPet:COMBAT_LOG_EVENT_UNFILTERED(...)
-    local _, time, event, _, sid, sname, sflags, _, tid, tname, tflags, _, spell, spellName = ...;
+function BadPet:COMBAT_LOG_EVENT_UNFILTERED()
+    local time, event, _, sid, sname, sflags, _, tid, tname, tflags, _, spell, spellName = CombatLogGetCurrentEventInfo()
     if (event == "SPELL_CAST_SUCCESS")
             and self.spells[spell]
             and (bit.band(COMBATLOG_OBJECT_TYPE_MASK, sflags) == COMBATLOG_OBJECT_TYPE_PET)
